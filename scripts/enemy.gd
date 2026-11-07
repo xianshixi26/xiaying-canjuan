@@ -27,7 +27,7 @@ func setup(p_player: Node2D, _pos: Vector2, p_hp: float = 60.0) -> void:
 func _physics_process(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
 	_hit_flash = maxf(_hit_flash - delta, 0.0)
-	_knockback = _knockback.move_toward(Vector2.ZERO, 900.0 * delta)
+	_knockback = _knockback.move_toward(Vector2.ZERO, 1200.0 * delta)
 
 	var target_dir := Vector2.ZERO
 	if is_instance_valid(player):
@@ -59,7 +59,7 @@ func _wander(delta: float) -> Vector2:
 func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	hp -= dmg
 	_hit_flash = 0.15
-	_knockback += knock
+	_knockback = (_knockback + knock).limit_length(320.0)  # 限制击退叠加，防止被打飞过远（D-015）
 	if hp <= 0.0:
 		queue_free()  # 原型：直接消失（正式版接入掉落/经验）
 
