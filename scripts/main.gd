@@ -28,7 +28,7 @@ func _ready() -> void:
 	_spawn_enemies()
 	hud.player = player
 	hud.move_list = player.move_list
-	print("《侠影残卷》原型 v0.2 启动成功｜J攻 K破 L闪 U御 I气｜连招：J-J-J / J-J-K / K-J / L-J / U-J / J-K-I｜Tab 武学图鉴")
+	print("《侠影残卷》原型 v0.3 启动成功｜J攻 K破 L闪 U御 I气｜1-5 切换武器（剑/刀/拳掌/暗器/棍）｜同一连招在不同武器下招式不同｜Tab 武学图鉴")
 
 ## 注册输入动作（键位草案见 PRD §2.1；仅在动作缺失时创建，避免重复注册）
 func _register_actions() -> void:
@@ -43,6 +43,11 @@ func _register_actions() -> void:
 		"block": [KEY_U],
 		"qi": [KEY_I],
 		"toggle_manual": [KEY_TAB],
+		"slot_1": [KEY_1],
+		"slot_2": [KEY_2],
+		"slot_3": [KEY_3],
+		"slot_4": [KEY_4],
+		"slot_5": [KEY_5],
 	}
 	for action: String in bindings:
 		if not InputMap.has_action(action):

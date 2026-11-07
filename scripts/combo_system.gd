@@ -13,6 +13,11 @@ var _clock := 0.0
 func _init(p_moves: Array) -> void:
 	moves = p_moves
 
+## 更换招式表（切换武器时调用，见 D-016），并清空输入缓冲
+func set_moves(p_moves: Array) -> void:
+	moves = p_moves
+	_buffer.clear()
+
 func tick(delta: float) -> void:
 	_clock += delta
 	while _buffer.size() > 0 and _clock - float(_buffer[0]["time"]) > BUFFER_LIFE:

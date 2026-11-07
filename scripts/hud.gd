@@ -31,8 +31,16 @@ func _draw() -> void:
 	var w := get_viewport_rect().size.x
 	var h := get_viewport_rect().size.y
 
-	# 标题
-	draw_string(font, Vector2(24, 42), "《侠影残卷》原型 v0.2", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size + 4, ink)
+	# 标题 + 当前武器
+	draw_string(font, Vector2(24, 42), "《侠影残卷》原型 v0.3", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size + 4, ink)
+	var wname := "青锋剑"
+	var wtype := "剑"
+	if is_instance_valid(player):
+		var wpn = player.get("weapon")
+		if wpn != null and not wpn.is_empty():
+			wname = str(wpn["name"])
+			wtype = str(wpn["type"])
+	draw_string(font, Vector2(24, 72), "武器：%s（%s）｜按 1-5 切换" % [wname, wtype], HORIZONTAL_ALIGNMENT_LEFT, -1.0, size - 2, Color(0.12, 0.12, 0.15, 0.8))
 
 	# 气血 / 内力
 	var hp := 100.0
@@ -65,19 +73,28 @@ func _draw() -> void:
 		draw_string(font, Vector2(w * 0.5 - tw * 0.5, 93.0), _hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tsize, Color(0.12, 0.12, 0.15, alpha))
 
 	# 操作提示
-	draw_string(font, Vector2(24, h - 28), "WASD 移动｜J 攻｜K 破｜L 闪｜U 御（按住减伤）｜I 气｜Tab 武学图鉴", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size - 2, Color(0.12, 0.12, 0.15, 0.75))
+	draw_string(font, Vector2(24, h - 28), "WASD 移动｜J 攻｜K 破｜L 闪｜U 御（按住减伤）｜I 气｜1-5 切换武器｜Tab 武学图鉴", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size - 2, Color(0.12, 0.12, 0.15, 0.75))
 
 	# 武学图鉴
 	if _manual_open:
 		_draw_manual(font, size, ink, w, h)
 
 func _draw_manual(font: Font, size: int, ink: Color, w: float, h: float) -> void:
+	var list: Array = move_list
+	var wname := ""
+	if is_instance_valid(player):
+		var live = player.get("move_list")
+		if live != null:
+			list = live
+		var pw = player.get("weapon")
+		if pw != null and not pw.is_empty():
+			wname = str(pw["name"])
 	var panel := Rect2(w * 0.5 - 320.0, h * 0.5 - 235.0, 640.0, 470.0)
 	draw_rect(panel, Color(0.95, 0.93, 0.86, 0.95))
 	draw_rect(panel, Color(0.12, 0.12, 0.15, 0.85), false, 2.0)
-	draw_string(font, panel.position + Vector2(24, 42), "武 学 图 鉴（Tab 关闭）", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size + 4, ink)
+	draw_string(font, panel.position + Vector2(24, 42), "武 学 图 鉴 · %s（Tab 关闭）" % wname, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size + 4, ink)
 	var y := panel.position.y + 88.0
-	for move in move_list:
+	for move in list:
 		var disc = player.get("discovered") if is_instance_valid(player) else null
 		var known: bool = bool(disc != null and disc.has(str(move["id"])))
 		if known:

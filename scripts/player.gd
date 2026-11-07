@@ -1,7 +1,7 @@
 extends CharacterBody2D
-## 玩家控制器（原型 v0.2）：基础动作 + 组合招式引擎 + 内力
-## 基础键：J攻 / K破 / L闪 / U御（按住）/ I气（PRD §2.1 草案键位）
-## 组合：按键序列在时间窗口内命中招式表即触发（见 move_database.gd）
+## 玩家控制器（原型 v0.3）：基础动作 + 武器系统 + 组合招式引擎 + 内力
+## 基础键：J攻 / K破 / L闪 / U御（按住）/ I气 ｜ 1-5 切换武器（正式版由拾取/装备驱动）
+## 组合：按键序列在时间窗口内命中当前武器的招式表即触发（D-016 武器-招式绑定）
 ## 渲染：水墨占位——墨色形体 + 印章红点缀
 
 signal hp_changed(hp: float, max_hp: float)
@@ -15,29 +15,12 @@ const SPEED := 260.0
 const ACCEL := 2000.0
 const FRICTION := 2400.0
 
-const ATTACK_RANGE := 82.0
-const ATTACK_ARC_DEG := 110.0
-const ATTACK_DAMAGE := 20.0
-const ATTACK_KNOCK := 180.0
-const ATTACK_COOLDOWN := 0.3
-
-const HEAVY_RANGE := 96.0
-const HEAVY_ARC_DEG := 140.0
-const HEAVY_DAMAGE := 32.0
-const HEAVY_KNOCK := 260.0
-const HEAVY_COOLDOWN := 0.6
-
 const DASH_SPEED := 680.0
 const DASH_TIME := 0.16
 const DASH_COOLDOWN := 0.55
 
 const BLOCK_SPEED_RATIO := 0.45
 const BLOCK_DAMAGE_RATIO := 0.3
-
-const QI_COST := 20.0
-const QI_DAMAGE := 25.0
-const QI_KNOCK := 160.0
-const QI_COOLDOWN := 0.45
 
 const MP_REGEN := 12.0
 const ARENA_HALF := Vector2(760.0, 520.0)
@@ -49,7 +32,9 @@ var mp := 100.0
 var facing := Vector2.RIGHT
 
 var hud: Node = null
-var move_list: Array = []     # 招式数据（供 HUD 武学图鉴）
+var weapon_list: Array = []   # 全部武器
+var weapon: Dictionary = {}   # 当前武器
+var move_list: Array = []     # 当前武器招式组（供 HUD 武学图鉴）
 var discovered := {}          # 已领悟招式 id -> true
 
 var _combo = null
@@ -64,8 +49,24 @@ var _invincible := 0.0
 var _hit_flash := 0.0
 
 func _ready() -> void:
-	move_list = MoveDB.get_moves()
-	_combo = ComboSystem.new(move_list)
+	weapon_list = MoveDB.get_weapons()
+	_combo = ComboSystem.new([])
+	set_weapon(0)
+
+## 切换武器：更换招式组与基础攻击参数（D-016）
+func set_weapon(idx: int) -> void:
+	if weapon_list.is_empty():
+		return
+	var i := clampi(idx, 0, weapon_list.size() - 1)
+	weapon = weapon_list[i]
+	move_list = MoveDB.moves_for(str(weapon["id"]))
+	_combo.set_moves(move_list)
+	_attack_cd = 0.0
+	_heavy_cd = 0.0
+	if hud != null:
+		hud.move_list = move_list
+	if not weapon.is_empty():
+		_hint("切换武器：%s（%s）——招式组已改变" % [str(weapon["name"]), str(weapon["type"])])
 
 func _physics_process(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
@@ -101,16 +102,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("attack"):
 		var move = _combo.push_action("attack")
 		if _attack_cd <= 0.0 and _dash_time <= 0.0:
-			_attack_cd = ATTACK_COOLDOWN
+			_attack_cd = float(weapon["atk_cd"])
 			_slash_time = 0.18
-			_hit_enemies(ATTACK_RANGE, ATTACK_ARC_DEG, ATTACK_DAMAGE, ATTACK_KNOCK)
+			if str(weapon["atk_kind"]) == "ranged":
+				_spawn_projectile(facing, float(weapon["atk_damage"]), float(weapon["atk_knock"]))
+			else:
+				_hit_enemies(float(weapon["atk_range"]), float(weapon["atk_arc"]), float(weapon["atk_damage"]), float(weapon["atk_knock"]))
 		_resolve_move(move)
 	elif event.is_action_pressed("heavy"):
 		var move = _combo.push_action("heavy")
 		if _heavy_cd <= 0.0:
-			_heavy_cd = HEAVY_COOLDOWN
+			_heavy_cd = float(weapon["heavy_cd"])
 			_heavy_time = 0.25
-			_hit_enemies(HEAVY_RANGE, HEAVY_ARC_DEG, HEAVY_DAMAGE, HEAVY_KNOCK)
+			if str(weapon["heavy_kind"]) == "ranged":
+				_spawn_projectile(facing, float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
+			else:
+				_hit_enemies(float(weapon["heavy_range"]), float(weapon["heavy_arc"]), float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
 		_resolve_move(move)
 	elif event.is_action_pressed("dodge"):
 		var move = _combo.push_action("dodge")
@@ -122,6 +129,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			_basic_qi()
 	elif event.is_action_pressed("block"):
 		_combo.push_action("block")
+	elif event.is_action_pressed("slot_1"):
+		set_weapon(0)
+	elif event.is_action_pressed("slot_2"):
+		set_weapon(1)
+	elif event.is_action_pressed("slot_3"):
+		set_weapon(2)
+	elif event.is_action_pressed("slot_4"):
+		set_weapon(3)
+	elif event.is_action_pressed("slot_5"):
+		set_weapon(4)
 
 ## 执行组合命中效果；返回 true 表示有招式被消耗/施展
 func _resolve_move(move: Dictionary) -> bool:
@@ -138,31 +155,43 @@ func _resolve_move(move: Dictionary) -> bool:
 		_hint("✦ 领悟新招式：%s（%s）" % [str(move["name"]), MoveDB.seq_text(move["seq"])])
 	else:
 		_hint("▸ %s！" % str(move["name"]))
-	# 效果
+	# 位移效果（负值=后撤）
+	if float(move["dash"]) != 0.0:
+		velocity = facing * float(move["dash"])
+	# 伤害效果
 	match str(move["kind"]):
 		"projectile":
 			if _qi_cd > 0.0:
 				return true
-			_qi_cd = QI_COOLDOWN
-			_spawn_projectile(float(move["damage"]), float(move["knock"]))
+			_qi_cd = QI_CD
+			_spawn_projectile(facing, float(move["damage"]), float(move["knock"]))
+		"spread":
+			if _qi_cd > 0.0:
+				return true
+			_qi_cd = QI_CD
+			_spawn_spread(move)
 		_:
-			_hit_enemies(float(move["range"]), float(move["arc"]), float(move["damage"]), float(move["knock"]), float(move["dash"]))
+			_hit_enemies(float(move["range"]), float(move["arc"]), float(move["damage"]), float(move["knock"]))
 	return true
+
+const QI_CD := 0.45
 
 func _basic_qi() -> void:
 	if _qi_cd > 0.0:
 		return
-	if mp < QI_COST:
-		_hint("内力不足")
-		return
-	mp -= QI_COST
-	_qi_cd = QI_COOLDOWN
-	_spawn_projectile(QI_DAMAGE, QI_KNOCK)
+	_qi_cd = QI_CD
+	_spawn_projectile(facing, 25.0, 160.0)
 
-func _spawn_projectile(damage: float, knock: float) -> void:
+func _spawn_projectile(dir: Vector2, damage: float, knock: float) -> void:
 	var proj = ProjectileScript.new()
-	proj.setup(facing.normalized(), damage, knock, global_position + facing.normalized() * 30.0)
+	proj.setup(dir.normalized(), damage, knock, global_position + dir.normalized() * 30.0)
 	get_parent().add_child(proj)
+
+func _spawn_spread(move: Dictionary) -> void:
+	var count := int(move.get("projectiles", 3))
+	for i in count:
+		var t := 0.0 if count <= 1 else (float(i) / float(count - 1) - 0.5) * 1.0
+		_spawn_projectile(facing.rotated(t), float(move["damage"]), float(move["knock"]))
 
 func _try_dash() -> void:
 	if _dash_cd > 0.0:
@@ -220,21 +249,32 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, 16.0, body)
 	# 发髻（淡墨）
 	draw_circle(Vector2(-3, -9), 9.0, Color(0.32, 0.32, 0.38))
-	# 兵器笔触（指向朝向）
+	# 兵器笔触（随武器类型变化）
 	var dir := facing.normalized()
-	draw_line(dir * 12.0, dir * 34.0, Color(0.16, 0.16, 0.2), 4.0, true)
+	var ink := Color(0.16, 0.16, 0.2)
+	match str(weapon.get("type", "剑")):
+		"剑":
+			draw_line(dir * 12.0, dir * 34.0, ink, 4.0, true)
+		"刀":
+			draw_line(dir * 10.0, dir * 32.0, ink, 7.0, true)
+		"拳掌":
+			draw_circle(dir * 22.0, 6.0, ink)
+		"暗器":
+			draw_circle(dir * 26.0, 4.0, Color(0.45, 0.42, 0.35))
+		"棍":
+			draw_line(dir * 6.0, dir * 44.0, Color(0.30, 0.26, 0.22), 5.0, true)
 	# 印章红点缀
 	draw_circle(Vector2(9, 6), 4.0, Color(0.78, 0.16, 0.15))
 	# 轻击刀光
 	if _slash_time > 0.0:
 		var aim := facing.angle()
-		var sweep := deg_to_rad(ATTACK_ARC_DEG)
+		var sweep := deg_to_rad(float(weapon.get("atk_arc", 110.0)))
 		draw_arc(Vector2.ZERO, 58.0, aim - sweep * 0.5, aim + sweep * 0.5, 28, Color(0.96, 0.94, 0.88, 0.9), 7.0, true)
 		draw_arc(Vector2.ZERO, 66.0, aim - sweep * 0.42, aim + sweep * 0.42, 24, Color(0.12, 0.12, 0.15, 0.35), 3.0, true)
 	# 重击刀光（宽）
 	if _heavy_time > 0.0:
 		var aim2 := facing.angle()
-		var sweep2 := deg_to_rad(HEAVY_ARC_DEG)
+		var sweep2 := deg_to_rad(float(weapon.get("heavy_arc", 140.0)))
 		draw_arc(Vector2.ZERO, 72.0, aim2 - sweep2 * 0.5, aim2 + sweep2 * 0.5, 30, Color(0.78, 0.16, 0.15, 0.55), 9.0, true)
 	# 格挡架势
 	if Input.is_action_pressed("block"):
