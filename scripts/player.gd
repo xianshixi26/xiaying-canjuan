@@ -23,7 +23,8 @@ const BLOCK_SPEED_RATIO := 0.45
 const BLOCK_DAMAGE_RATIO := 0.3
 
 const MP_REGEN := 12.0
-const ARENA_HALF := Vector2(760.0, 520.0)
+
+var arena_half := Vector2(760.0, 520.0)  # 场地边界（由地图构建器注入）
 
 var max_hp := 100.0
 var hp := 100.0
@@ -95,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
 
 	move_and_slide()
-	position = position.clamp(-ARENA_HALF, ARENA_HALF)
+	position = position.clamp(-arena_half, arena_half)
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
