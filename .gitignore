@@ -1,0 +1,4 @@
+# Godot 4 缓存与导出
+.godot/
+export_presets.cfg
+*.tmp
