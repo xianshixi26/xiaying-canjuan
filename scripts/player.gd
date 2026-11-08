@@ -427,7 +427,7 @@ func take_damage(dmg: float) -> void:
 	if _invincible > 0.0:
 		return
 	var blocked := Input.is_action_pressed("block")
-	var final := dmg * (BLOCK_DAMAGE_RATIO if blocked else 1.0)
+	var final := dmg * (BLOCK_DAMAGE_RATIO if blocked else 1.0) * GameState.damage_factor()
 	hp = maxf(hp - final, 0.0)
 	_hit_flash = 0.2
 	_invincible = 0.4

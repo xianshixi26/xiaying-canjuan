@@ -91,6 +91,25 @@ func _ready() -> void:
 	_interactables.append({"pos": _boss_gate_pos, "kind": "boss_gate", "label": "进入幽泉坛", "node": null, "world": "village", "opened": false})
 	hud.quest_text = "与村中的白霁交谈"
 	hud.choice_picked.connect(_on_choice)
+	# 开局状态（D-031）：新游戏命格注入 / 读档恢复
+	if GameState.pending_load.is_empty():
+		if not GameState.pending_mingge.is_empty():
+			player.apply_mingge(GameState.pending_mingge)
+			hud.show_hint("命格·%s 已入体" % str(GameState.pending_mingge["name"]))
+	else:
+		GameState.apply_to(player, self, GameState.pending_load)
+		GameState.pending_load = {}
+		hud.show_hint("存档读取成功，江湖再会")
+		match story_stage:
+			1:
+				hud.quest_text = "调查村中线索（%d/3）" % mini(clue_count, 3)
+			2:
+				hud.quest_text = "前往东北山门，诛杀殷无昼"
+			3:
+				hud.quest_text = "回村寻白霁，当面对质"
+			4:
+				hud.quest_text = "江湖已定"
+	hud.get_parent().process_mode = Node.PROCESS_MODE_ALWAYS  # 暂停时 HUD 保持响应
 	# 快照村庄节点（室内外切换用）
 	for c in get_children():
 		if c != player and c != hud.get_parent():
@@ -280,21 +299,18 @@ func _on_choice(idx: int) -> void:
 			hud.show_ending("结局·入魔",
 				"你取过完整《沧溟诀》，扶起白霁：「从今日起，听风楼听我号令。」秦无咎大笑而亡。多年后，江湖人提起「白衣楼主」与他身后的影子，无不色变。（二周目·入魔线开启）")
 
-## 卦摊抽签（D-028）：品质受气运影响
+## 卦摊（D-031 后命格在开局抽取；此处为天命批注）
 func _roll_mingge(it: Dictionary) -> void:
 	it["opened"] = true
-	var luck := float(player.get("stats").get("气运", 5))
-	var roll := randf() + luck * 0.02
-	var pool: Array = []
-	if roll > 0.85:
-		pool = _by_quality("天品")
-	elif roll > 0.45:
-		pool = _by_quality("地品")
+	var mg := str(player.get("mingge"))
+	if mg != "未定命格":
+		hud.say("卦摊老人", "你已于入世时抽得命格【%s】，天命已定，善自珍重。" % mg)
 	else:
-		pool = _by_quality("凡品") + _by_quality("隐藏")
-	var m: Dictionary = pool[randi() % pool.size()]
-	player.apply_mingge(m)
-	hud.show_hint("签落定·%s（%s）：%s" % [str(m["name"]), str(m["quality"]), str(m["desc"])])
+		hud.say("卦摊老人", "你尚未抽签……也罢，老朽为你补上一签。")
+		var pool := _by_quality("地品") + _by_quality("凡品")
+		var m: Dictionary = pool[randi() % pool.size()]
+		player.apply_mingge(m)
+		hud.show_hint("补签·%s（%s）：%s" % [str(m["name"]), str(m["quality"]), str(m["desc"])])
 
 func _by_quality(q: String) -> Array:
 	var out: Array = []
@@ -440,6 +456,7 @@ func _register_actions() -> void:
 		"block": [KEY_U],
 		"qi": [KEY_I],
 		"interact": [KEY_F],
+		"pause": [KEY_ESCAPE],
 		"chain_exec": [KEY_R],
 		"use_potion": [KEY_Q],
 		"use_ether": [KEY_E],

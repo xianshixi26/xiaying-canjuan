@@ -7,8 +7,12 @@ config_version=5
 
 config/name="侠影残卷"
 config/description="2D 俯视角水墨武侠动作探索 RPG（原型）"
-run/main_scene="res://scenes/Main.tscn"
+run/main_scene="res://scenes/Title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+GameState="*res://scripts/game_state.gd"
 
 [display]
 

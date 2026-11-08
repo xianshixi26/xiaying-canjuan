@@ -40,6 +40,7 @@ var _dlg_speaker := ""
 var _dlg_shown := 0.0
 var _choices: Array = []
 var _ending: Dictionary = {}
+var _pause_open := false
 
 func say(speaker: String, text: String) -> void:
 	_dialog.append({"speaker": speaker, "text": text})
@@ -88,6 +89,34 @@ func _toggle(panel: String) -> void:
 	_chain_open = panel == "chain" and not _chain_open
 
 func _unhandled_input(event: InputEvent) -> void:
+	# ---- 暂停菜单（D-031）----
+	if _pause_open:
+		if event.is_action_pressed("pause"):
+			_pause_open = false
+			get_tree().paused = false
+			get_viewport().set_input_as_handled()
+		elif event is InputEventKey and event.pressed and not event.echo:
+			match event.keycode:
+				KEY_1:
+					var ok: bool = GameState.save_game(player, get_tree().current_scene)
+					show_hint("游戏已保存" if ok else "保存失败")
+					_pause_open = false
+					get_tree().paused = false
+					get_viewport().set_input_as_handled()
+				KEY_2:
+					_pause_open = false
+					get_tree().paused = false
+					get_viewport().set_input_as_handled()
+				KEY_3:
+					get_tree().paused = false
+					get_tree().change_scene_to_file("res://scenes/Title.tscn")
+					get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("pause"):
+		_pause_open = true
+		get_tree().paused = true
+		get_viewport().set_input_as_handled()
+		return
 	# ---- 剧情对话优先（D-030）----
 	if not _ending.is_empty():
 		if event.is_action_pressed("chain_exec") or event.is_action_pressed("interact"):
@@ -172,6 +201,8 @@ func _draw() -> void:
 		_draw_prompt(w, h)
 	_draw_legend(w, h)
 
+	if _pause_open:
+		_draw_pause(w, h)
 	if boss_max > 0.0:
 		_draw_boss_bar(w)
 	if quest_text != "":
@@ -228,7 +259,7 @@ func _draw_player_panel() -> void:
 			draw_texture_rect_region(spr.texture, portrait.grow(-2.0), Rect2(0, 0, 64, 64))
 	draw_rect(portrait, C_INK, false, 2.0)
 	# 名号与命格
-	draw_string(_font, Vector2(98, 48), "无名少侠", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 4, C_INK)
+	draw_string(_font, Vector2(98, 48), GameState.pending_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 4, C_INK)
 	var mg := "未定命格"
 	if is_instance_valid(player):
 		mg = str(player.get("mingge"))
@@ -411,6 +442,19 @@ func _weapon_name() -> String:
 	return ""
 
 # ================= 剧情绘制（D-030） =================
+
+func _draw_pause(w: float, h: float) -> void:
+	draw_rect(Rect2(0, 0, w, h), Color(0.06, 0.05, 0.1, 0.72))
+	var rect := Rect2(w * 0.5 - 260.0, h * 0.5 - 190.0, 520.0, 380.0)
+	_draw_panel(rect, 0.98)
+	draw_string(_font, Vector2(0, rect.position.y + 56), "暂      停", HORIZONTAL_ALIGNMENT_CENTER, w, 36, C_INK)
+	var info := GameState.save_info()
+	var sub := "尚无存档" if info.is_empty() else "存档：Lv.%d · 第 %d 日 · %s" % [info["level"], info["day"], info["saved_at"]]
+	draw_string(_font, Vector2(0, rect.position.y + 92), sub, HORIZONTAL_ALIGNMENT_CENTER, w, 18, Color(C_GRAY))
+	var rows := ["1  保 存 游 戏", "2  继 续 游 戏", "3  返 回 标 题"]
+	for i in rows.size():
+		draw_string(_font, Vector2(0, rect.position.y + 160.0 + i * 62.0), rows[i], HORIZONTAL_ALIGNMENT_CENTER, w, 28, C_INK)
+	draw_string(_font, Vector2(0, rect.position.y + 350.0), "难度：%s（受伤 %d%%）｜Esc 关闭" % [GameState.difficulty, int(GameState.damage_factor() * 100)], HORIZONTAL_ALIGNMENT_CENTER, w, 18, Color(C_GRAY))
 
 func _wrap(text: String, max_w: float) -> Array:
 	var lines: Array = []
