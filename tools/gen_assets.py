@@ -756,6 +756,74 @@ def sprite_oracle():
     return img
 
 
+def sprite_story_actor(kind, frame=0):
+    """剧情角色 16x16：baiji 白衣文士 / boss 幽泉教主"""
+    img = new_px(16, 16)
+    d = ImageDraw.Draw(img)
+    bob = 1 if frame in (1, 3) else 0
+    if kind == "baiji":
+        body, body_l, body_d = G_XL, (252, 246, 232, 255), G_L
+        head_top, acc = HAIR, G_M
+    else:
+        body, body_l, body_d = (52, 30, 36, 255), RD_D, (32, 18, 24, 255)
+        head_top, acc = (32, 18, 24, 255), GOLD_D
+    # 腿
+    if frame == 0 or frame == 2:
+        d.rectangle([5, 12 - bob, 6, 15], fill=body_d)
+        d.rectangle([8, 12 - bob, 9, 15], fill=body_d)
+    elif frame == 1:
+        d.rectangle([3, 12 - bob, 4, 15], fill=body_d)
+        d.rectangle([10, 12 - bob, 11, 14], fill=body_d)
+    else:
+        d.rectangle([10, 12 - bob, 11, 15], fill=body_d)
+        d.rectangle([3, 12 - bob, 4, 14], fill=body_d)
+    # 身
+    d.rectangle([4, 7 - bob, 11, 12 - bob], fill=body)
+    d.line([(4, 7 - bob), (4, 12 - bob)], fill=body_l)
+    d.line([(11, 7 - bob), (11, 12 - bob)], fill=body_d)
+    d.line([(4, 11 - bob), (11, 11 - bob)], fill=acc)
+    # 臂
+    swing = 0 if frame in (0, 2) else (1 if frame == 1 else -1)
+    d.rectangle([2, 8 - bob + swing, 3, 11 - bob + swing], fill=body_l)
+    d.rectangle([12, 8 - bob - swing, 13, 11 - bob - swing], fill=body_d)
+    # 头
+    d.rectangle([5, 3 - bob, 10, 7 - bob], fill=SK_M)
+    d.line([(5, 3 - bob), (5, 7 - bob)], fill=SK_L)
+    d.rectangle([5, 1 - bob, 10, 3 - bob], fill=head_top)
+    d.point((7, 5 - bob), fill=HAIR)
+    d.point((9, 5 - bob), fill=HAIR)
+    if kind == "baiji":
+        d.point((7, 1 - bob), fill=GOLD_D)              # 发冠
+        d.rectangle([13, 9 - bob, 14, 12 - bob], fill=G_XL)  # 手中书卷
+        d.point((13, 8 - bob), fill=RD_M)
+    else:
+        d.line([(5, 1 - bob), (10, 1 - bob)], fill=GOLD_L)   # 金冠
+        d.point((6, 4 - bob), fill=RD_L)                     # 红瞳
+        d.point((10, 4 - bob), fill=RD_L)
+        d.line([(13, 6 - bob), (14, 11 - bob)], fill=STEEL_L)  # 刀
+    outline(img)
+    return img
+
+
+def sprite_gate():
+    """幽泉坛入口 32x32：黑木山门 + 红幡"""
+    img = new_px(32, 32)
+    d = ImageDraw.Draw(img)
+    d.rectangle([4, 8, 8, 29], fill=(32, 18, 24, 255))    # 柱
+    d.rectangle([23, 8, 27, 29], fill=(32, 18, 24, 255))
+    shade_box(d, 2, 3, 29, 9, (52, 30, 36, 255), RD_D, (24, 12, 16, 255))  # 檐
+    d.point((5, 2), fill=RD_M)
+    d.point((26, 2), fill=RD_M)
+    d.rectangle([13, 12, 18, 18], fill=RD_M)              # 匾
+    d.point((15, 15), fill=GOLD_L)
+    for x in (7, 24):
+        d.rectangle([x - 1, 12, x + 2, 24], fill=RD_D)    # 幡
+        d.point((x, 13), fill=RD_L)
+    d.rectangle([4, 28, 27, 30], fill=(32, 18, 24, 255))  # 门槛
+    outline(img)
+    return img
+
+
 def main():
     make_tile_sheet("paper.png", tile_paper)
     make_tile_sheet("grass.png", tile_grass)
@@ -773,6 +841,15 @@ def main():
     save(sprite_flower(), PROPS, "flower.png")
     make_actor_sheet("hero.png", True)
     make_actor_sheet("brigand.png", False)
+    sheet = new_px(64, 16)
+    for i in range(4):
+        sheet.paste(sprite_story_actor("baiji", i), (i * 16, 0))
+    save(sheet, ACTORS, "baiji.png")
+    sheet = new_px(64, 16)
+    for i in range(4):
+        sheet.paste(sprite_story_actor("boss", i), (i * 16, 0))
+    save(sheet, ACTORS, "boss.png")
+    save(sprite_gate(), PROPS, "gate.png")
     save(sprite_chest(False), PROPS, "chest.png")
     save(sprite_chest(True), PROPS, "chest_open.png")
     save(sprite_clue(), PROPS, "clue.png")

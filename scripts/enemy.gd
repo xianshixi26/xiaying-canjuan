@@ -17,6 +17,8 @@ var player: Node2D
 var xp := 20                  # 击败经验（D-029）
 var base_damage := 10.0
 var base_speed := 130.0
+var is_boss := false          # Boss 标记（D-030）
+var tex_path := "res://assets/actors/brigand.png"
 var _spr: Sprite2D
 var _attack_cd := 0.0
 var _hit_flash := 0.0
@@ -28,10 +30,12 @@ var _knockback := Vector2.ZERO
 func _ready() -> void:
 	add_to_group("enemies")
 	_spr = Sprite2D.new()
-	_spr.texture = load("res://assets/actors/brigand.png")
+	_spr.texture = load(tex_path)
 	_spr.hframes = 4
 	_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_spr.offset = Vector2(0, -32)
+	if is_boss:
+		_spr.scale = Vector2(2, 2)  # Boss 体型 2 倍（整数缩放）
 	add_child(_spr)
 
 func setup(p_player: Node2D, _pos: Vector2, p_hp: float = 60.0) -> void:
@@ -102,6 +106,10 @@ func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	if hp <= 0.0:
 		if is_instance_valid(player) and player.has_method("add_xp"):
 			player.add_xp(xp)  # 击败获得经验（D-029）
+		if is_boss:
+			var scene := get_tree().current_scene
+			if scene != null and scene.has_method("on_boss_defeated"):
+				scene.on_boss_defeated()  # 剧情推进（D-030）
 		queue_free()  # 原型：直接消失（正式版接入掉落/经验）
 
 func _draw() -> void:

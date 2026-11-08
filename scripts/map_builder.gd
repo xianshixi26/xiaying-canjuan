@@ -26,6 +26,7 @@ const PROP_TEX := {
 	"signpost": "res://assets/props/signpost.png",
 	"lantern_post": "res://assets/props/lantern_post.png",
 	"oracle": "res://assets/props/oracle.png",
+	"gate": "res://assets/props/gate.png",
 }
 
 ## 构建整张地图；返回 {name, bounds, player_spawn, enemy_spawns, doors, chests, clues}
@@ -47,6 +48,8 @@ static func build(parent: Node2D) -> Dictionary:
 		],
 		"doors": doors,
 		"oracle": _tile_to_world(20, 18),
+		"baiji_pos": _tile_to_world(24, 13),
+		"boss_gate": _tile_to_world(44, 4),
 		"chests": [
 			_tile_to_world(8, 11), _tile_to_world(39, 12), _tile_to_world(15, 27),
 			_tile_to_world(31, 28), _tile_to_world(43, 15), _tile_to_world(21, 21),
@@ -122,6 +125,7 @@ static func _build_props(parent: Node2D, _info: Dictionary, huts: Array) -> void
 	# ---- 环境道具：水井 / 告示牌 / 灯柱 / 卦摊 ----
 	_add_prop(parent, str(PROP_TEX["well"]), _tile_to_world(27, 19), "circle", 34.0, -4.0)
 	_add_prop(parent, str(PROP_TEX["oracle"]), _tile_to_world(20, 18), "circle", 22.0, -2.0)
+	_add_prop(parent, str(PROP_TEX["gate"]), _tile_to_world(44, 4), "circle", 30.0, -2.0)
 	for p in [Vector2i(22, 12), Vector2i(26, 21), Vector2i(21, 18)]:
 		_add_prop(parent, str(PROP_TEX["signpost"]), _tile_to_world(p.x, p.y), "circle", 12.0, -2.0)
 	for p in [Vector2i(22, 7), Vector2i(22, 11), Vector2i(22, 22), Vector2i(22, 27),

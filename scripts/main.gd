@@ -43,6 +43,10 @@ var _return_pos := Vector2.ZERO
 var _village_bounds := Rect2()
 var _interactables: Array = []
 var _pending_weapons: Array = ["saber", "fist", "dart", "staff"]
+# ---- 剧情（D-030）----
+var story_stage := 0
+var clue_count := 0
+var _boss_gate_pos := Vector2.ZERO
 var _spawn_points: Array = []
 var _spawn_timer := 6.0
 # ---- 昼夜（D-029）----
@@ -81,6 +85,12 @@ func _ready() -> void:
 	for pos: Vector2 in info["doors"]:
 		_interactables.append({"pos": pos, "kind": "door", "label": "进入房屋", "node": null, "world": "village", "opened": false})
 	_interactables.append({"pos": info["oracle"], "kind": "oracle", "label": "抽签问卦（一次机会）", "node": null, "world": "village", "opened": false})
+	# 剧情节点（D-030）
+	_register_npc(info["baiji_pos"], "res://assets/actors/baiji.png", "npc_baiji", "与白霁交谈")
+	_boss_gate_pos = info["boss_gate"]
+	_interactables.append({"pos": _boss_gate_pos, "kind": "boss_gate", "label": "进入幽泉坛", "node": null, "world": "village", "opened": false})
+	hud.quest_text = "与村中的白霁交谈"
+	hud.choice_picked.connect(_on_choice)
 	# 快照村庄节点（室内外切换用）
 	for c in get_children():
 		if c != player and c != hud.get_parent():
@@ -101,6 +111,16 @@ func _process(delta: float) -> void:
 		_apply_night_effects()
 	_world_tint.color = _tint_color()
 	hud.day_text = "第 %d 日 · %s" % [day_count, _shichen()]
+	# Boss 血条同步（D-030）
+	if hud.boss_max > 0.0:
+		var found := false
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if bool(enemy.get("is_boss")):
+				hud.boss_hp = enemy.hp
+				found = true
+				break
+		if not found:
+			hud.boss_max = 0.0
 	# 敌人持续反复生成（D-024）：仅村庄、远离玩家处刷新；夜晚刷新更快
 	if not in_interior:
 		_spawn_timer -= delta
@@ -162,6 +182,103 @@ func _unhandled_input(event: InputEvent) -> void:
 				_investigate(it)
 			"oracle":
 				_roll_mingge(it)
+			"npc_baiji":
+				_talk_baiji()
+			"boss_gate":
+				_enter_boss()
+
+# ================= 剧情任务（D-030） =================
+
+func _register_npc(pos: Vector2, tex: String, kind: String, label: String) -> void:
+	var root := Node2D.new()
+	root.position = pos
+	var spr := Sprite2D.new()
+	spr.texture = load(tex)
+	spr.hframes = 4
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.offset = Vector2(0, -32)
+	root.add_child(spr)
+	add_child(root)
+	_interactables.append({"pos": pos, "kind": kind, "label": label, "node": root, "world": "village", "opened": false})
+
+func _talk_baiji() -> void:
+	match story_stage:
+		0:
+			hud.say("白霁", "少侠节哀……令师秦无咎之死，绝非寻常山贼所为。")
+			hud.say("白霁", "在下听风楼楼主白霁。江湖传言，幽泉教正在搜罗《沧溟诀》残页……")
+			hud.say("白霁", "村中石碑竹简或有线索。请调查三处调查点，再来寻我。")
+			story_stage = 1
+			hud.quest_text = "调查村中线索（0/3）"
+		1:
+			if clue_count >= 3:
+				hud.say("白霁", "果然……残页现世，幽泉教蠢蠢欲动。")
+				hud.say("白霁", "幽泉坛入口在东北山门。教主殷无昼武功深不可测，多加小心。")
+				story_stage = 2
+				hud.quest_text = "前往东北山门，诛杀殷无昼"
+			else:
+				hud.say("白霁", "线索还不够。村中石碑竹简，还需调查三处。")
+		2:
+			hud.say("白霁", "先诛殷无昼。他的密室里，或许有你要的答案。")
+		3:
+			hud.say("白霁", "少侠可曾想过——你走的每一步，都是别人安排好的？")
+			hud.say("白霁", "令师秦无咎，并没有死。")
+			hud.say("秦无咎", "……为师借你之手除掉殷无昼，取回另一半《沧溟诀》。")
+			hud.say("秦无咎", "如今残页尽归我手。徒儿，你要如何？")
+			hud.show_choices([
+				"一剑诛心：手刃师父，毁去残卷",
+				"释然放手：废其武功，守墓思过",
+				"入魔夺经：夺取完整《沧溟诀》",
+			])
+		_:
+			hud.say("白霁", "……（一切已成定局）")
+
+func _enter_boss() -> void:
+	if story_stage < 2:
+		hud.say("", "（山门瘴气逼人，凶险未明。先回村与白霁商议对策。）")
+		return
+	if hud.boss_max > 0.0:
+		hud.show_hint("殷无昼就在附近！")
+		return
+	if story_stage >= 3:
+		hud.show_hint("幽坛已破，空无一人。")
+		return
+	var enemy := EnemyScript.new()
+	enemy.is_boss = true
+	enemy.tex_path = "res://assets/actors/boss.png"
+	enemy.attack_damage = 16.0
+	enemy.speed = 110.0
+	enemy.xp = 200
+	enemy.setup(player, _boss_gate_pos + Vector2(0, -90), 420.0)
+	enemy.set_night(is_night)
+	add_child(enemy)
+	hud.boss_name = "幽泉教主·殷无昼"
+	hud.boss_max = 420.0
+	hud.boss_hp = 420.0
+	hud.quest_text = "诛杀幽泉教主·殷无昼"
+	hud.say("殷无昼", "秦无咎的徒弟？来得正好——把残页交出来！")
+
+func on_boss_defeated() -> void:
+	if story_stage != 2:
+		return
+	story_stage = 3
+	hud.boss_max = 0.0
+	player.add_xp(200)
+	hud.say("殷无昼（绝笔）", "……我不过是一枚棋子。白霁背后之人……你的师父……秦无咎……")
+	hud.say("", "（你从密室搜出往来书信，真相渐渐浮出水面。）")
+	hud.quest_text = "回村寻白霁，当面对质"
+
+func _on_choice(idx: int) -> void:
+	story_stage = 4
+	match idx:
+		0:
+			hud.show_ending("结局·诛心",
+				"你拾起地上的剑。「师父，你教我剑法、教我做人，却把我当刀。」剑光起落，秦无咎倒在他自己的棋盘旁。你将《沧溟诀》残页尽数投入火中，转身走入江湖。从此世间再无沧溟诀，只剩一个无名的剑客。")
+		1:
+			hud.show_ending("结局·释然",
+				"你废去师父武功，将他带回落雁村。他在坟前日日守着——其实坟里埋的是谁，已经不重要了。残卷归还各宗门，江湖渐平。每年清明，村口多了一个扫墓的人。")
+		2:
+			hud.show_ending("结局·入魔",
+				"你取过完整《沧溟诀》，扶起白霁：「从今日起，听风楼听我号令。」秦无咎大笑而亡。多年后，江湖人提起「白衣楼主」与他身后的影子，无不色变。（二周目·入魔线开启）")
 
 ## 卦摊抽签（D-028）：品质受气运影响
 func _roll_mingge(it: Dictionary) -> void:
@@ -245,6 +362,9 @@ func _investigate(it: Dictionary) -> void:
 	var idx := randi() % CLUE_TEXTS.size()
 	player.add_item("herb", 1)
 	hud.show_hint("调查发现（草药×1）：" + CLUE_TEXTS[idx])
+	clue_count += 1
+	if story_stage == 1:
+		hud.quest_text = "调查村中线索（%d/3）" % mini(clue_count, 3)
 	if idx == 2 and _pending_weapons.size() > 0:
 		var wid: String = _pending_weapons.pop_front()
 		player.grant_weapon(wid)

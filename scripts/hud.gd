@@ -28,9 +28,50 @@ var _manual_open := false
 var _attr_open := false
 var _bag_open := false
 var _chain_open := false
+# ---- 剧情对话（D-030）----
+signal choice_picked(idx)
+var quest_text := ""
+var boss_name := ""
+var boss_hp := 0.0
+var boss_max := 0.0
+var _dialog: Array = []
+var _dlg_text := ""
+var _dlg_speaker := ""
+var _dlg_shown := 0.0
+var _choices: Array = []
+var _ending: Dictionary = {}
+
+func say(speaker: String, text: String) -> void:
+	_dialog.append({"speaker": speaker, "text": text})
+	if _dlg_text == "":
+		_advance_dialog()
+
+func dialog_active() -> bool:
+	return _dialog.size() > 0 or _dlg_text != "" or _choices.size() > 0 or not _ending.is_empty()
+
+func show_choices(options: Array) -> void:
+	_choices = options
+
+func show_ending(title: String, text: String) -> void:
+	_ending = {"title": title, "text": text}
+
+func _advance_dialog() -> void:
+	if _dlg_text != "" and _dlg_shown < float(_dlg_text.length()):
+		_dlg_shown = float(_dlg_text.length())
+		return
+	if _dialog.size() > 0:
+		var line: Dictionary = _dialog.pop_front()
+		_dlg_speaker = str(line["speaker"])
+		_dlg_text = str(line["text"])
+		_dlg_shown = 0.0
+	else:
+		_dlg_speaker = ""
+		_dlg_text = ""
 
 func _process(delta: float) -> void:
 	_hint_time = maxf(_hint_time - delta, 0.0)
+	if _dlg_text != "":
+		_dlg_shown = minf(_dlg_shown + delta * 32.0, float(_dlg_text.length()))
 	queue_redraw()
 
 func show_hint(text: String) -> void:
@@ -47,6 +88,26 @@ func _toggle(panel: String) -> void:
 	_chain_open = panel == "chain" and not _chain_open
 
 func _unhandled_input(event: InputEvent) -> void:
+	# ---- 剧情对话优先（D-030）----
+	if not _ending.is_empty():
+		if event.is_action_pressed("chain_exec") or event.is_action_pressed("interact"):
+			get_tree().reload_current_scene()
+			get_viewport().set_input_as_handled()
+		return
+	if _choices.size() > 0:
+		if event is InputEventKey and event.pressed and not event.echo:
+			var ck: int = event.keycode
+			if ck >= KEY_1 and ck <= KEY_9 and (ck - KEY_1) < _choices.size():
+				var idx: int = ck - KEY_1
+				_choices = []
+				choice_picked.emit(idx)
+				get_viewport().set_input_as_handled()
+		return
+	if _dialog.size() > 0 or _dlg_text != "":
+		if event.is_action_pressed("interact") or event.is_action_pressed("attack"):
+			_advance_dialog()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("toggle_manual"):
 		_toggle("manual")
 		get_viewport().set_input_as_handled()
@@ -110,6 +171,17 @@ func _draw() -> void:
 	if prompt_text != "":
 		_draw_prompt(w, h)
 	_draw_legend(w, h)
+
+	if boss_max > 0.0:
+		_draw_boss_bar(w)
+	if quest_text != "":
+		_draw_quest(w)
+	if _dlg_text != "":
+		_draw_dialog(w, h)
+	if _choices.size() > 0:
+		_draw_choices(w, h)
+	if not _ending.is_empty():
+		_draw_ending(w, h)
 
 	if _manual_open:
 		_draw_manual(w, h)
@@ -337,3 +409,66 @@ func _weapon_name() -> String:
 		if wpn != null and not wpn.is_empty():
 			return str(wpn["name"])
 	return ""
+
+# ================= 剧情绘制（D-030） =================
+
+func _wrap(text: String, max_w: float) -> Array:
+	var lines: Array = []
+	var cur := ""
+	for i in text.length():
+		var ch := text.substr(i, 1)
+		var t := cur + ch
+		if _font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize).x > max_w:
+			lines.append(cur)
+			cur = ch
+		else:
+			cur = t
+	if cur != "":
+		lines.append(cur)
+	return lines
+
+func _draw_boss_bar(w: float) -> void:
+	var rect := Rect2(w * 0.5 - 260.0, 20.0, 520.0, 54.0)
+	_draw_panel(rect, 0.92)
+	draw_string(_font, rect.position + Vector2(18, 26), "「" + boss_name + "」", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, Color(C_RED))
+	_draw_bar(Rect2(rect.position + Vector2(18, 34), Vector2(484, 12)), boss_hp / maxf(boss_max, 1.0), Color(C_RED), Color(0.95, 0.5, 0.4))
+
+func _draw_quest(w: float) -> void:
+	var rect := Rect2(w - 244, 92, 228, 58)
+	_draw_panel(rect, 0.9)
+	draw_string(_font, rect.position + Vector2(14, 24), "◆ 任务", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 4, Color(C_RED))
+	for ln in _wrap(quest_text, 196.0):
+		draw_string(_font, rect.position + Vector2(14, 46), ln, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, C_INK)
+
+func _draw_dialog(w: float, h: float) -> void:
+	var rect := Rect2(w * 0.5 - 390.0, h - 250.0, 780.0, 150.0)
+	_draw_panel(rect, 0.97)
+	if _dlg_speaker != "":
+		draw_string(_font, rect.position + Vector2(28, 36), "「" + _dlg_speaker + "」", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, Color(C_RED))
+	var shown := _dlg_text.substr(0, int(_dlg_shown))
+	var y := rect.position.y + 70.0
+	for ln in _wrap(shown, rect.size.x - 64.0):
+		draw_string(_font, rect.position + Vector2(28, y), ln, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, C_INK)
+		y += 30.0
+	draw_string(_font, rect.end - Vector2(96, 16), "▼ F 继续", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 4, Color(C_GRAY))
+
+func _draw_choices(w: float, h: float) -> void:
+	var rect := Rect2(w * 0.5 - 330.0, h * 0.5 - 40.0 - float(_choices.size()) * 30.0, 660.0, 80.0 + float(_choices.size()) * 60.0)
+	_draw_panel(rect, 0.97)
+	draw_string(_font, rect.position + Vector2(28, 42), "做出你的抉择：", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, C_INK)
+	var y := rect.position.y + 86.0
+	for i in _choices.size():
+		_draw_keycap(Vector2(rect.position.x + 28, y - 16), str(i + 1))
+		draw_string(_font, rect.position + Vector2(62, y), str(_choices[i]), HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, Color(C_RED))
+		y += 60.0
+
+func _draw_ending(w: float, h: float) -> void:
+	draw_rect(Rect2(0, 0, w, h), Color(0.06, 0.05, 0.1, 0.82))
+	var rect := Rect2(w * 0.5 - 340.0, h * 0.5 - 210.0, 680.0, 420.0)
+	_draw_panel(rect, 0.98)
+	draw_string(_font, rect.position + Vector2(0, 70), str(_ending["title"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, _fsize + 16, Color(C_RED))
+	var y := rect.position.y + 130.0
+	for ln in _wrap(str(_ending["text"]), rect.size.x - 80.0):
+		draw_string(_font, rect.position + Vector2(40, y), ln, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, C_INK)
+		y += 32.0
+	draw_string(_font, rect.position + Vector2(0, rect.size.y - 40), "—— 按 R 重新开始 ——", HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, _fsize, Color(C_GRAY))
