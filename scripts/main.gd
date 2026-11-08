@@ -32,6 +32,10 @@ var _return_pos := Vector2.ZERO
 var _village_bounds := Rect2()
 var _interactables: Array = []
 var _pending_weapons: Array = ["saber", "fist", "dart", "staff"]
+var _spawn_points: Array = []
+var _spawn_timer := 6.0
+const ENEMY_CAP := 14
+const SPAWN_INTERVAL := 10.0
 
 func _ready() -> void:
 	y_sort_enabled = true
@@ -50,6 +54,7 @@ func _ready() -> void:
 		enemy.position = pos
 		enemy.setup(player, pos)
 		add_child(enemy)
+	_spawn_points = info["enemy_spawns"]
 	for pos: Vector2 in info["chests"]:
 		_register_chest(pos, "village")
 	for pos: Vector2 in info["clues"]:
@@ -62,9 +67,30 @@ func _ready() -> void:
 			_village_nodes.append(c)
 	print("《侠影残卷》原型 v0.6 启动成功｜F 交互（宝箱/调查点/房屋）｜J攻 K破 L闪 U御 I气｜1-5 切换武器（初始仅剑）｜Tab 武学图鉴")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var it := _nearest_interactable()
 	hud.set_prompt("" if it.is_empty() else "按 F %s" % str(it["label"]))
+	# 敌人持续反复生成（D-024）：仅村庄、远离玩家处刷新
+	if not in_interior:
+		_spawn_timer -= delta
+		if _spawn_timer <= 0.0:
+			_spawn_timer = SPAWN_INTERVAL
+			_try_spawn_enemy()
+
+func _try_spawn_enemy() -> void:
+	if get_tree().get_nodes_in_group("enemies").size() >= ENEMY_CAP:
+		return
+	var candidates: Array = []
+	for pos: Vector2 in _spawn_points:
+		if player.global_position.distance_to(pos) > 480.0:
+			candidates.append(pos)
+	if candidates.is_empty():
+		return
+	var pos: Vector2 = candidates[randi() % candidates.size()]
+	var enemy := EnemyScript.new()
+	enemy.position = pos
+	enemy.setup(player, pos)
+	add_child(enemy)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):

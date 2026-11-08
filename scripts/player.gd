@@ -139,7 +139,16 @@ func _physics_process(delta: float) -> void:
 		_spr.flip_h = facing.x < 0.0
 	_spr.self_modulate = Color(2.2, 0.7, 0.7) if _hit_flash > 0.0 else Color.WHITE
 	if _w_spr != null:
-		_w_spr.offset = facing.normalized() * 20.0 + Vector2(0, -14)
+		# 手持武器：常态在手侧；攻击时沿弧线挥舞（2px 量化保持像素感，D-024）
+		var swing := 0.0
+		var remain := maxf(_slash_time, _heavy_time)
+		if remain > 0.0:
+			var total := 0.25 if _heavy_time > 0.0 else 0.18
+			var t := 1.0 - clampf(remain / total, 0.0, 1.0)
+			swing = lerpf(-1.15, 1.15, t)
+		var w_ang := facing.angle() + swing
+		var w_off := Vector2(cos(w_ang), sin(w_ang)) * 22.0 + Vector2(0, -12)
+		_w_spr.offset = (w_off / 2.0).round() * 2.0
 		_w_spr.flip_h = facing.x < 0.0
 		_w_spr.self_modulate = _spr.self_modulate
 	queue_redraw()

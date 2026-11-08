@@ -41,7 +41,8 @@ static func build(parent: Node2D) -> Dictionary:
 		"enemy_spawns": [
 			_tile_to_world(7, 5), _tile_to_world(40, 6), _tile_to_world(43, 20),
 			_tile_to_world(6, 18), _tile_to_world(41, 28), _tile_to_world(16, 29),
-			_tile_to_world(31, 13), _tile_to_world(9, 28),
+			_tile_to_world(31, 13), _tile_to_world(9, 28), _tile_to_world(18, 11),
+			_tile_to_world(36, 19), _tile_to_world(28, 24), _tile_to_world(13, 15),
 		],
 		"doors": doors,
 		"chests": [
