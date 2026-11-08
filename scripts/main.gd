@@ -45,13 +45,21 @@ var _interactables: Array = []
 var _pending_weapons: Array = ["saber", "fist", "dart", "staff"]
 var _spawn_points: Array = []
 var _spawn_timer := 6.0
+# ---- 昼夜（D-029）----
+var day_count := 1
+var day_time := 0.38
+var is_night := false
+var _world_tint: CanvasModulate = null
 const ENEMY_CAP := 14
 const SPAWN_INTERVAL := 10.0
+const DAY_LENGTH := 240.0   # 现实 240 秒 = 游戏一天
 
 func _ready() -> void:
 	y_sort_enabled = true
 	_register_actions()
 	_setup_font()
+	_world_tint = CanvasModulate.new()  # 天色渐变（只影响世界层，HUD 不受影响）
+	add_child(_world_tint)
 	var info := MapBuilder.build(self)
 	_village_bounds = info["bounds"]
 	player.position = info["player_spawn"]
@@ -82,12 +90,45 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var it := _nearest_interactable()
 	hud.set_prompt("" if it.is_empty() else "按 F %s" % str(it["label"]))
-	# 敌人持续反复生成（D-024）：仅村庄、远离玩家处刷新
+	# 昼夜时钟（D-029）
+	day_time += delta / DAY_LENGTH
+	if day_time >= 1.0:
+		day_time -= 1.0
+		day_count += 1
+	var night_now := day_time > 0.58 or day_time < 0.06
+	if night_now != is_night:
+		is_night = night_now
+		_apply_night_effects()
+	_world_tint.color = _tint_color()
+	hud.day_text = "第 %d 日 · %s" % [day_count, _shichen()]
+	# 敌人持续反复生成（D-024）：仅村庄、远离玩家处刷新；夜晚刷新更快
 	if not in_interior:
 		_spawn_timer -= delta
 		if _spawn_timer <= 0.0:
-			_spawn_timer = SPAWN_INTERVAL
+			_spawn_timer = 6.0 if is_night else SPAWN_INTERVAL
 			_try_spawn_enemy()
+
+## 昼夜切换：敌人强化/还原（D-029）
+func _apply_night_effects() -> void:
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		enemy.set_night(is_night)
+	hud.show_hint("夜幕降临，危机四伏……（敌人强化、刷新加速）" if is_night else "天色破晓，平安无事")
+
+func _tint_color() -> Color:
+	var t := day_time
+	if t < 0.06:
+		return Color(0.52, 0.58, 0.80)   # 深夜
+	elif t < 0.16:
+		return Color(1.0, 0.88, 0.84)    # 清晨
+	elif t < 0.52:
+		return Color(1.0, 1.0, 1.0)      # 白昼
+	elif t < 0.62:
+		return Color(1.0, 0.80, 0.62)    # 黄昏
+	return Color(0.52, 0.58, 0.80)       # 夜晚
+
+func _shichen() -> String:
+	var names := ["子时·深夜", "丑时", "寅时", "卯时·清晨", "辰时", "巳时", "午时·正午", "未时", "申时", "酉时·黄昏", "戌时", "亥时"]
+	return names[int(day_time * 12.0) % 12]
 
 func _try_spawn_enemy() -> void:
 	if get_tree().get_nodes_in_group("enemies").size() >= ENEMY_CAP:
@@ -102,6 +143,7 @@ func _try_spawn_enemy() -> void:
 	var enemy := EnemyScript.new()
 	enemy.position = pos
 	enemy.setup(player, pos)
+	enemy.set_night(is_night)
 	add_child(enemy)
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -14,6 +14,9 @@ var attack_damage := 10.0
 var attack_interval := 1.2
 
 var player: Node2D
+var xp := 20                  # 击败经验（D-029）
+var base_damage := 10.0
+var base_speed := 130.0
 var _spr: Sprite2D
 var _attack_cd := 0.0
 var _hit_flash := 0.0
@@ -35,6 +38,13 @@ func setup(p_player: Node2D, _pos: Vector2, p_hp: float = 60.0) -> void:
 	player = p_player
 	max_hp = p_hp
 	hp = p_hp
+	base_damage = attack_damage
+	base_speed = speed
+
+## 昼夜强化（D-029）：夜晚敌人更危险
+func set_night(n: bool) -> void:
+	attack_damage = base_damage * (1.3 if n else 1.0)
+	speed = base_speed * (1.15 if n else 1.0)
 
 func _physics_process(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
@@ -90,6 +100,8 @@ func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	fx.global_position = global_position + Vector2(0, -34)
 	get_parent().add_child(fx)
 	if hp <= 0.0:
+		if is_instance_valid(player) and player.has_method("add_xp"):
+			player.add_xp(xp)  # 击败获得经验（D-029）
 		queue_free()  # 原型：直接消失（正式版接入掉落/经验）
 
 func _draw() -> void:

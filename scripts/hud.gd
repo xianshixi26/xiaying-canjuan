@@ -59,6 +59,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_chain"):
 		_toggle("chain")
 		get_viewport().set_input_as_handled()
+	elif _attr_open and event is InputEventKey and event.pressed and not event.echo:
+		var ak: int = event.keycode
+		if ak >= KEY_1 and ak <= KEY_6:
+			var labels := ["力道", "身法", "根骨", "悟性", "内力", "气运"]
+			player.allocate_stat(labels[ak - KEY_1])
+			get_viewport().set_input_as_handled()
 	elif _chain_open and event is InputEventKey and event.pressed and not event.echo:
 		var k: int = event.keycode
 		var arr := _discovered_list()
@@ -249,20 +255,35 @@ func _draw_attr(w: float, h: float) -> void:
 	var rect := _panel_frame(w, h, "属 性 · " + _weapon_name())
 	var stats: Dictionary = player.get("stats") if is_instance_valid(player) else {}
 	var mg := str(player.get("mingge")) if is_instance_valid(player) else "未定命格"
+	# 等级/经验/属性点（D-029）
+	var lv := 1
+	var xp := 0
+	var pts := 0
+	if is_instance_valid(player):
+		lv = int(player.get("level"))
+		xp = int(player.get("xp"))
+		pts = int(player.get("stat_points"))
+	var need := 50 + lv * 25
+	draw_string(_font, rect.position + Vector2(40, 98), "等级 Lv.%d ｜ 经验 %d/%d ｜ 可分配属性点：%d（按 1-6 分配）" % [lv, xp, need, pts], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, C_INK)
+	_draw_bar(Rect2(rect.position + Vector2(40, 110), Vector2(420, 12)), float(xp) / float(need), Color(C_GOLD), Color(0.96, 0.85, 0.55))
 	var labels := ["力道", "身法", "根骨", "悟性", "内力", "气运"]
 	var descs := ["外功伤害", "攻速移速闪避", "气血防御", "悟性连招", "内力真元", "机缘掉落"]
-	var y := rect.position.y + 110.0
+	var y := rect.position.y + 168.0
 	for i in labels.size():
 		var col := 0 if i < 3 else 1
 		var x := rect.position.x + 40.0 + col * 370.0
 		var yy := y + (i % 3) * 62.0
-		draw_string(_font, Vector2(x, yy), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, C_INK)
-		draw_string(_font, Vector2(x + 90, yy), str(int(stats.get(labels[i], 0))), HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 6, Color(C_RED))
-		draw_string(_font, Vector2(x, yy + 22), descs[i], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, Color(C_GRAY))
-	var by := rect.position.y + 330.0
-	draw_string(_font, rect.position + Vector2(40, by), "派生：气血 %d ｜ 内力 %d ｜ 气血=100+根骨×5 ｜ 伤害×(1+力道×2%%)" % [int(player.max_hp), int(player.max_mp)] if is_instance_valid(player) else "", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 3, C_INK)
+		_draw_keycap(Vector2(x, yy - 16), str(i + 1))
+		draw_string(_font, Vector2(x + 30, yy), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, C_INK)
+		draw_string(_font, Vector2(x + 120, yy), str(int(stats.get(labels[i], 0))), HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 6, Color(C_RED))
+		draw_string(_font, Vector2(x + 30, yy + 22), descs[i], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, Color(C_GRAY))
+	var by := rect.position.y + 372.0
+	var deri := ""
+	if is_instance_valid(player):
+		deri = "派生：气血 %d ｜ 内力 %d ｜ 气血=100+根骨×5 ｜ 伤害×(1+力道×2%%) ｜ 移速×(1+身法×1.2%%)" % [int(player.max_hp), int(player.max_mp)]
+	draw_string(_font, rect.position + Vector2(40, by), deri, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 3, C_INK)
 	draw_string(_font, rect.position + Vector2(40, by + 34), "命格·" + mg + "（卦摊抽签后生效，见村中卦摊）", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 1, Color(C_GOLD))
-	draw_string(_font, rect.position + Vector2(40, by + 76), "提示：命格抽签（卦摊 F）一次性改变初始属性；升级加点后续版本接入。", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, Color(C_GRAY))
+	draw_string(_font, rect.position + Vector2(40, by + 72), "升级获得属性点；夜晚战斗经验更多（昼夜系统）。", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, Color(C_GRAY))
 
 func _draw_bag(w: float, h: float) -> void:
 	var rect := _panel_frame(w, h, "背 包")

@@ -49,6 +49,10 @@ const ITEMS := {"potion": "金疮药", "ether": "回气散", "herb": "草药", "
 var chains := {}              # 武器id -> Array[招式id]
 var _chain_idx := 0
 var _chain_timer := 0.0
+# ---- 成长（D-029）----
+var level := 1
+var xp := 0
+var stat_points := 0
 
 var _combo = null
 var _attack_cd := 0.0
@@ -90,6 +94,29 @@ func refresh_derived() -> void:
 	max_mp = 100.0 + float(stats["内力"]) * 5.0
 	hp = minf(hp, max_hp)
 	mp = minf(mp, max_mp)
+
+## 升级与属性点（D-029）
+func add_xp(n: int) -> void:
+	xp += n
+	var need := 50 + level * 25
+	while xp >= need:
+		xp -= need
+		level += 1
+		stat_points += 3
+		hp = max_hp
+		mp = max_mp
+		hp_changed.emit(hp, max_hp)
+		_hint("升级！当前 %d 级——获得 3 属性点（按 C 分配）" % level)
+		need = 50 + level * 25
+
+func allocate_stat(key: String) -> void:
+	if stat_points <= 0:
+		_hint("没有可分配属性点（升级获得）")
+		return
+	stat_points -= 1
+	stats[key] = int(stats[key]) + 1
+	refresh_derived()
+	_hint("%s +1（剩余 %d 点）" % [key, stat_points])
 
 func apply_mingge(m: Dictionary) -> void:
 	mingge = str(m["name"])
