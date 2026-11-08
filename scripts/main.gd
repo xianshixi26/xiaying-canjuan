@@ -176,10 +176,14 @@ func exit_interior() -> void:
 
 func _set_world_active(nodes: Array, active: bool) -> void:
 	for n in nodes:
+		if not is_instance_valid(n):  # 敌人死亡释放后跳过残留引用
+			continue
 		n.visible = active
 		_set_collision(n, active)
 
 func _set_collision(n: Node, active: bool) -> void:
+	if not is_instance_valid(n):
+		return
 	if n is StaticBody2D:
 		n.collision_layer = 1 if active else 0
 	elif n is CharacterBody2D and n != player:
