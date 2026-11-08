@@ -27,6 +27,9 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 10.0, Color(0.24, 0.30, 0.46, 0.9))
-	draw_circle(-dir * 14.0, 6.0, Color(0.24, 0.30, 0.46, 0.5))
-	draw_circle(-dir * 26.0, 3.5, Color(0.24, 0.30, 0.46, 0.25))
+	# 剑气辉光（D-025）：外层晕光 + 亮核 + 渐隐拖尾
+	for i in 4:
+		draw_circle(Vector2.ZERO, 16.0 - i * 3.5, Color(0.55, 0.75, 1.0, 0.12 + i * 0.1))
+	for i in 3:
+		draw_circle(-dir * (10.0 + i * 9.0), 7.0 - i * 2.0, Color(0.65, 0.82, 1.0, 0.35 - i * 0.1))
+	draw_circle(Vector2.ZERO, 6.0, Color(1.0, 0.98, 0.9, 0.95))

@@ -11,6 +11,7 @@ const MoveDB := preload("res://scripts/move_database.gd")
 const ComboSystem := preload("res://scripts/combo_system.gd")
 const ProjectileScript := preload("res://scripts/projectile.gd")
 const EffectScript := preload("res://scripts/effect.gd")
+const SlashEffect := preload("res://scripts/slash_effect.gd")
 
 const SPEED := 260.0
 const ACCEL := 2000.0
@@ -159,7 +160,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _attack_cd <= 0.0 and _dash_time <= 0.0:
 			_attack_cd = float(weapon["atk_cd"])
 			_slash_time = 0.18
-			_spawn_fx("fx_slash.png", 4, 22.0)
+			_spawn_slash(false)
 			if str(weapon["atk_kind"]) == "ranged":
 				_spawn_projectile(facing, float(weapon["atk_damage"]), float(weapon["atk_knock"]))
 			else:
@@ -170,7 +171,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _heavy_cd <= 0.0:
 			_heavy_cd = float(weapon["heavy_cd"])
 			_heavy_time = 0.25
-			_spawn_fx("fx_slash_heavy.png", 4, 18.0)
+			_spawn_slash(true)
 			if str(weapon["heavy_kind"]) == "ranged":
 				_spawn_projectile(facing, float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
 			else:
@@ -229,18 +230,43 @@ func _resolve_move(move: Dictionary) -> bool:
 			_spawn_spread(move)
 		_:
 			if str(move["kind"]) == "burst" or float(move["damage"]) >= 40.0:
-				_spawn_fx("fx_burst.png", 4, 16.0)
+				_spawn_burst()
 			_hit_enemies(float(move["range"]), float(move["arc"]), float(move["damage"]), float(move["knock"]))
 	return true
 
-func _spawn_fx(fx_name: String, frames: int, fps: float) -> void:
-	var fx = EffectScript.new()
-	fx.texture = load("res://assets/fx/" + fx_name)
-	fx.hframes = frames
-	fx.fps = fps
-	fx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	fx.global_position = global_position + facing.normalized() * 26.0
-	fx.flip_h = facing.x < 0.0
+## 武器光色（D-025：剑光配色随武器）
+func _weapon_glow() -> Color:
+	match str(weapon.get("type", "剑")):
+		"刀":
+			return Color(1.0, 0.55, 0.3)
+		"拳掌":
+			return Color(1.0, 0.85, 0.45)
+		"暗器":
+			return Color(0.6, 1.0, 0.7)
+		"棍":
+			return Color(0.85, 0.7, 1.0)
+	return Color(0.65, 0.82, 1.0)
+
+## 剑光扫弧（轻击窄弧 / 重击宽弧红光）
+func _spawn_slash(heavy: bool) -> void:
+	var fx = SlashEffect.new()
+	fx.mode = "slash"
+	fx.base_angle = facing.angle()
+	fx.radius = 92.0 if heavy else 76.0
+	fx.sweep = 1.5 if heavy else 1.2
+	fx.duration = 0.3 if heavy else 0.24
+	fx.color_glow = Color(1.0, 0.42, 0.22) if heavy else _weapon_glow()
+	fx.color_core = Color(1.0, 0.96, 0.88)
+	fx.global_position = global_position
+	get_parent().add_child(fx)
+
+func _spawn_burst() -> void:
+	var fx = SlashEffect.new()
+	fx.mode = "burst"
+	fx.duration = 0.32
+	fx.color_glow = _weapon_glow()
+	fx.color_core = Color(1.0, 0.96, 0.88)
+	fx.global_position = global_position
 	get_parent().add_child(fx)
 
 const QI_CD := 0.45

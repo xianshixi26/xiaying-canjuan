@@ -3,6 +3,7 @@ extends CharacterBody2D
 ## 渲染：16x16 逻辑px 精灵（4 帧行走，技能动画规范）+ 落影 + 头顶血条
 
 const EffectScript := preload("res://scripts/effect.gd")
+const SlashEffect := preload("res://scripts/slash_effect.gd")
 
 var max_hp := 60.0
 var hp := 60.0
@@ -81,11 +82,11 @@ func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	hp -= dmg
 	_hit_flash = 0.15
 	_knockback = (_knockback + knock).limit_length(320.0)  # 限制击退叠加（D-015）
-	var fx = EffectScript.new()
-	fx.texture = load("res://assets/fx/fx_hit.png")
-	fx.hframes = 4
-	fx.fps = 20.0
-	fx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var fx = SlashEffect.new()
+	fx.mode = "hit"
+	fx.duration = 0.22
+	fx.color_glow = Color(1.0, 0.8, 0.35)
+	fx.color_core = Color(1.0, 0.98, 0.9)
 	fx.global_position = global_position + Vector2(0, -34)
 	get_parent().add_child(fx)
 	if hp <= 0.0:
