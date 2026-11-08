@@ -9,6 +9,17 @@ const MapBuilder := preload("res://scripts/map_builder.gd")
 const InteriorBuilder := preload("res://scripts/interior_builder.gd")
 
 const WEAPON_NAMES := {"saber": "雁翎刀", "fist": "铁砂掌", "dart": "透骨钉", "staff": "齐眉棍"}
+## 命格表（D-028：卦摊抽签，一次机会）
+const MINGGE_TABLE := [
+	{"name": "武曲星临凡", "quality": "天品", "mods": {"力道": 3}, "desc": "天生神力"},
+	{"name": "扫地僧命格", "quality": "天品", "mods": {"悟性": 3, "内力": 1}, "desc": "悟性过人"},
+	{"name": "灵猫身法", "quality": "地品", "mods": {"身法": 2, "气运": 1}, "desc": "来去如风"},
+	{"name": "铁臂罗汉", "quality": "地品", "mods": {"根骨": 2, "力道": 1}, "desc": "皮糙肉厚"},
+	{"name": "夜猫子", "quality": "地品", "mods": {"身法": 1, "气运": 2}, "desc": "夜战占优"},
+	{"name": "寻常百姓", "quality": "凡品", "mods": {"根骨": 1}, "desc": "平平无奇"},
+	{"name": "书呆子", "quality": "凡品", "mods": {"悟性": 2, "力道": -1}, "desc": "读书误了练武"},
+	{"name": "天煞孤星", "quality": "隐藏", "mods": {"力道": -1, "气运": 4}, "desc": "福祸相依"},
+]
 const CLUE_TEXTS := [
 	"竹简残文：'沧溟诀残页曾现于落雁村，师兄弟二人各执一半……'",
 	"石碑刻痕：'醉剑翁每日黄昏在村口独饮，望的是来路。'",
@@ -61,6 +72,7 @@ func _ready() -> void:
 		_register_clue(pos, "village")
 	for pos: Vector2 in info["doors"]:
 		_interactables.append({"pos": pos, "kind": "door", "label": "进入房屋", "node": null, "world": "village", "opened": false})
+	_interactables.append({"pos": info["oracle"], "kind": "oracle", "label": "抽签问卦（一次机会）", "node": null, "world": "village", "opened": false})
 	# 快照村庄节点（室内外切换用）
 	for c in get_children():
 		if c != player and c != hud.get_parent():
@@ -106,6 +118,31 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_chest(it)
 			"clue":
 				_investigate(it)
+			"oracle":
+				_roll_mingge(it)
+
+## 卦摊抽签（D-028）：品质受气运影响
+func _roll_mingge(it: Dictionary) -> void:
+	it["opened"] = true
+	var luck := float(player.get("stats").get("气运", 5))
+	var roll := randf() + luck * 0.02
+	var pool: Array = []
+	if roll > 0.85:
+		pool = _by_quality("天品")
+	elif roll > 0.45:
+		pool = _by_quality("地品")
+	else:
+		pool = _by_quality("凡品") + _by_quality("隐藏")
+	var m: Dictionary = pool[randi() % pool.size()]
+	player.apply_mingge(m)
+	hud.show_hint("签落定·%s（%s）：%s" % [str(m["name"]), str(m["quality"]), str(m["desc"])])
+
+func _by_quality(q: String) -> Array:
+	var out: Array = []
+	for m in MINGGE_TABLE:
+		if str(m["quality"]) == q:
+			out.append(m)
+	return out
 
 # ================= 交互点 =================
 
@@ -157,12 +194,15 @@ func _open_chest(it: Dictionary) -> void:
 		player.grant_weapon(wid)
 		hud.show_hint("✦ 开启宝箱：获得新武器【%s】！" % str(WEAPON_NAMES.get(wid, wid)))
 	else:
-		hud.show_hint("开启宝箱：获得【金疮药 ×2】（物品栏后续接入）")
+		player.add_item("potion", 2)
+		player.add_item("herb", 1)
+		hud.show_hint("开启宝箱：金疮药 ×2、草药 ×1")
 
 func _investigate(it: Dictionary) -> void:
 	it["opened"] = true
 	var idx := randi() % CLUE_TEXTS.size()
-	hud.show_hint("调查发现：" + CLUE_TEXTS[idx])
+	player.add_item("herb", 1)
+	hud.show_hint("调查发现（草药×1）：" + CLUE_TEXTS[idx])
 	if idx == 2 and _pending_weapons.size() > 0:
 		var wid: String = _pending_weapons.pop_front()
 		player.grant_weapon(wid)
@@ -238,7 +278,13 @@ func _register_actions() -> void:
 		"block": [KEY_U],
 		"qi": [KEY_I],
 		"interact": [KEY_F],
+		"chain_exec": [KEY_R],
+		"use_potion": [KEY_Q],
+		"use_ether": [KEY_E],
 		"toggle_manual": [KEY_TAB],
+		"toggle_attr": [KEY_C],
+		"toggle_bag": [KEY_B],
+		"toggle_chain": [KEY_V],
 		"slot_1": [KEY_1],
 		"slot_2": [KEY_2],
 		"slot_3": [KEY_3],

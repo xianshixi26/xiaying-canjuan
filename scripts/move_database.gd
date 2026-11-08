@@ -140,6 +140,13 @@ static func get_moves() -> Array:
 			"desc": "一棍定海，四野俱震"},
 	]
 
+## 按 id 查找招式（连招链施展用，D-028）
+static func move_by_id(id: String) -> Dictionary:
+	for move in get_moves():
+		if str(move["id"]) == id:
+			return move
+	return {}
+
 ## 按武器 id 过滤招式组
 static func moves_for(weapon_id: String) -> Array:
 	var out: Array = []

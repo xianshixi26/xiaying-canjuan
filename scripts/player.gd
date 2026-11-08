@@ -41,6 +41,14 @@ var weapon_idx := 0
 var weapon_unlocked := {"sword": true}  # 初始仅剑，其余靠宝箱/调查点（D-023）
 var move_list: Array = []     # 当前武器招式组（供 HUD 武学图鉴）
 var discovered := {}          # 已领悟招式 id -> true
+# ---- 属性/命格/背包/连招链（D-028）----
+var stats := {"力道": 5, "身法": 5, "根骨": 5, "悟性": 5, "内力": 5, "气运": 5}
+var mingge := "未定命格"
+var inventory := {"potion": 2, "ether": 1, "herb": 0, "iron": 0}
+const ITEMS := {"potion": "金疮药", "ether": "回气散", "herb": "草药", "iron": "玄铁"}
+var chains := {}              # 武器id -> Array[招式id]
+var _chain_idx := 0
+var _chain_timer := 0.0
 
 var _combo = null
 var _attack_cd := 0.0
@@ -71,6 +79,78 @@ func _ready() -> void:
 	_w_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_w_spr)
 	set_weapon(0)
+	refresh_derived()
+	hp = max_hp
+	mp = max_mp
+
+# ================= 属性/命格/背包/连招链（D-028） =================
+
+func refresh_derived() -> void:
+	max_hp = 100.0 + float(stats["根骨"]) * 5.0
+	max_mp = 100.0 + float(stats["内力"]) * 5.0
+	hp = minf(hp, max_hp)
+	mp = minf(mp, max_mp)
+
+func apply_mingge(m: Dictionary) -> void:
+	mingge = str(m["name"])
+	var mods: Dictionary = m["mods"]
+	for k in mods.keys():
+		stats[k] = int(stats[k]) + int(mods[k])
+	refresh_derived()
+	hp = max_hp
+	mp = max_mp
+
+func use_item(id: String) -> void:
+	if int(inventory.get(id, 0)) <= 0:
+		_hint("没有【%s】了" % str(ITEMS.get(id, id)))
+		return
+	inventory[id] = int(inventory[id]) - 1
+	match id:
+		"potion":
+			hp = minf(hp + 50.0, max_hp)
+			_hint("服用【金疮药】：气血 +50")
+		"ether":
+			mp = minf(mp + 50.0, max_mp)
+			_hint("服用【回气散】：内力 +50")
+		_:
+			_hint("获得材料：" + str(ITEMS.get(id, id)))
+	hp_changed.emit(hp, max_hp)
+
+func add_item(id: String, n: int) -> void:
+	inventory[id] = int(inventory.get(id, 0)) + n
+
+func chain_append(move_id: String) -> void:
+	var wid := str(weapon["id"])
+	if not chains.has(wid):
+		chains[wid] = []
+	var arr: Array = chains[wid]
+	if arr.size() >= 5:
+		_hint("连招链已满（5 段）")
+		return
+	arr.append(move_id)
+	_hint("连招链 +【%s】" % str(MoveDB.move_by_id(move_id).get("name", move_id)))
+
+func chain_pop() -> void:
+	var arr: Array = chains.get(str(weapon["id"]), [])
+	if arr.size() > 0:
+		arr.pop_back()
+
+func chain_clear() -> void:
+	chains[str(weapon["id"])] = []
+
+func chain_exec() -> void:
+	var arr: Array = chains.get(str(weapon["id"]), [])
+	if arr.is_empty():
+		_hint("尚未编排连招链（按 V 编排）")
+		return
+	if _chain_timer <= 0.0:
+		_chain_idx = 0
+	_chain_timer = 3.0
+	var mid: String = str(arr[_chain_idx % arr.size()])
+	_chain_idx += 1
+	var mv := MoveDB.move_by_id(mid)
+	if not mv.is_empty():
+		_resolve_move(mv)
 
 ## 切换武器：更换招式组与基础攻击参数（D-016）；未解锁武器不可用（D-023）
 func set_weapon(idx: int) -> void:
@@ -112,6 +192,7 @@ func _physics_process(delta: float) -> void:
 	_heavy_time = maxf(_heavy_time - delta, 0.0)
 	_invincible = maxf(_invincible - delta, 0.0)
 	_hit_flash = maxf(_hit_flash - delta, 0.0)
+	_chain_timer = maxf(_chain_timer - delta, 0.0)
 	_combo.tick(delta)
 	mp = minf(mp + MP_REGEN * delta, max_mp)
 
@@ -123,7 +204,7 @@ func _physics_process(delta: float) -> void:
 		velocity = facing * DASH_SPEED
 	elif input_dir != Vector2.ZERO:
 		facing = input_dir.normalized()
-		var speed := SPEED * (BLOCK_SPEED_RATIO if blocking else 1.0)
+		var speed := SPEED * (1.0 + float(stats["身法"]) * 0.012) * (BLOCK_SPEED_RATIO if blocking else 1.0)
 		velocity = velocity.move_toward(input_dir * speed, ACCEL * delta)
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
@@ -187,6 +268,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_basic_qi()
 	elif event.is_action_pressed("block"):
 		_combo.push_action("block")
+	elif event.is_action_pressed("chain_exec"):
+		chain_exec()
+	elif event.is_action_pressed("use_potion"):
+		use_item("potion")
+	elif event.is_action_pressed("use_ether"):
+		use_item("ether")
 	elif event.is_action_pressed("slot_1"):
 		set_weapon(0)
 	elif event.is_action_pressed("slot_2"):
@@ -295,8 +382,9 @@ func _try_dash() -> void:
 	_dash_time = DASH_TIME
 	_invincible = DASH_TIME + 0.05
 
-## 扇形命中判定
+## 扇形命中判定（力道加成，D-028）
 func _hit_enemies(range: float, arc_deg: float, damage: float, knock: float, dash: float = 0.0) -> void:
+	damage *= 1.0 + float(stats["力道"]) * 0.02
 	if dash > 0.0:
 		velocity = facing * dash
 	var aim := facing.angle()

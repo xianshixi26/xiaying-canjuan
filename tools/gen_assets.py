@@ -736,6 +736,26 @@ def weapon_icons():
     return img
 
 
+def sprite_oracle():
+    """卦摊 24x24：桌 + 签筒 + 帆布 + 红灯笼"""
+    img = new_px(24, 24)
+    d = ImageDraw.Draw(img)
+    shade_box(d, 2, 12, 21, 20, W_M, W_L, W_D)            # 桌
+    d.rectangle([4, 4, 7, 13], fill=W_D)                  # 竿
+    d.rectangle([16, 4, 19, 13], fill=W_D)
+    shade_box(d, 3, 2, 20, 6, RD_M, RD_L, RD_D)           # 帆布
+    d.rectangle([9, 3, 14, 5], fill=G_XL)                 # "卦"布
+    d.point((11, 4), fill=W_D)
+    shade_box(d, 9, 8, 13, 13, W_L, W_XL, W_M)            # 签筒
+    for x in (10, 11, 12):
+        d.line([(x, 6), (x, 8)], fill=GOLD_D)             # 签
+        d.point((x, 5), fill=GOLD_L)
+    d.ellipse([2, 7, 5, 11], fill=RD_M)                   # 灯笼
+    d.point((3, 8), fill=RD_L)
+    outline(img)
+    return img
+
+
 def main():
     make_tile_sheet("paper.png", tile_paper)
     make_tile_sheet("grass.png", tile_grass)
@@ -762,6 +782,7 @@ def main():
     save(sprite_well(), PROPS, "well.png")
     save(sprite_signpost(), PROPS, "signpost.png")
     save(sprite_lantern_post(), PROPS, "lantern_post.png")
+    save(sprite_oracle(), PROPS, "oracle.png")
     fx = os.path.join(ROOT, "assets", "fx")
     os.makedirs(fx, exist_ok=True)
     sheet = new_px(64, 16)
