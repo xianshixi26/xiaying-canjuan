@@ -1,7 +1,0 @@
-[17512:16296:1108/160928.688:WARNING:t_skinfilemap.cpp(68)] SGRenderLog:CheckUpdate newMem.OpenMem Suc, szNewMem:Local\sgime_skin.v4.filemap.sogouime
-[17512:16296:1108/160928.688:WARNING:t_skinfilemap.cpp(70)] SGRenderLog:CheckUpdate finish: old version:1
-[17512:16296:1108/160928.688:WARNING:t_skinfilemap.cpp(72)] SGRenderLog:CheckUpdate finish: new version:4
-[17512:16296:1108/160932.159:WARNING:imeconvertstate.cpp(4218)] kernel convert return count0
-[17512:16296:1108/160932.273:WARNING:imeconvertstate.cpp(4218)] kernel convert return count0
-[17512:16296:1108/160932.543:WARNING:imeconvertstate.cpp(4218)] kernel convert return count0
-[17512:16296:1108/160934.792:WARNING:imeconvertstate.cpp(4218)] kernel convert return count0
