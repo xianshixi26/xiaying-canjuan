@@ -3,6 +3,7 @@ extends Node
 ## Autoload 单例（project.godot [autoload] 注册）
 
 const SAVE_PATH := "user://save_1.json"
+const SAVE_FALLBACK := "res://save_1.json"  # user:// 不可写环境（如沙箱）的回退路径
 
 var pending_name := "无名少侠"
 var pending_mingge := {}
@@ -20,7 +21,13 @@ func damage_factor() -> float:
 	return 1.0
 
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return _find_save() != ""
+
+func _find_save() -> String:
+	for p in [SAVE_PATH, SAVE_FALLBACK]:
+		if FileAccess.file_exists(p):
+			return p
+	return ""
 
 func save_info() -> Dictionary:
 	if not has_save():
@@ -33,7 +40,10 @@ func save_info() -> Dictionary:
 	}
 
 func _read() -> Dictionary:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var path := _find_save()
+	if path == "":
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		return {}
 	var parsed = JSON.parse_string(f.get_as_text())
@@ -59,11 +69,13 @@ func save_game(player: Node, main: Node) -> bool:
 		"pos_x": player.global_position.x, "pos_y": player.global_position.y,
 		"saved_at": Time.get_datetime_string_from_system(),
 	}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f == null:
-		return false
-	f.store_string(JSON.stringify(data, "\t"))
-	return true
+	var text := JSON.stringify(data, "\t")
+	for p in [SAVE_PATH, SAVE_FALLBACK]:
+		var f := FileAccess.open(p, FileAccess.WRITE)
+		if f != null:
+			f.store_string(text)
+			return true
+	return false
 
 func load_game() -> void:
 	pending_load = _read()
