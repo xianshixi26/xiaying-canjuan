@@ -138,6 +138,26 @@ static func get_moves() -> Array:
 		{"id": "g_dinghai", "weapon": "staff", "name": "终结·定海一击", "seq": ["attack", "heavy", "qi"], "kind": "burst",
 			"damage": 66.0, "range": 150.0, "arc": 360.0, "knock": 340.0, "dash": 0.0, "cost": 40.0, "tier": "高阶", "manual": false,
 			"desc": "一棍定海，四野俱震"},
+
+		# ===== 宗门专属（D-032：拜师习得，manual=true 未学不可用）=====
+		{"id": "s_weituo", "weapon": "staff", "name": "韦陀杵", "seq": ["heavy", "heavy"], "kind": "melee",
+			"damage": 55.0, "range": 115.0, "arc": 150.0, "knock": 320.0, "dash": 0.0, "cost": 25.0, "tier": "高阶", "manual": true,
+			"desc": "少林秘传·双杵开碑"},
+		{"id": "s_taiji", "weapon": "sword", "name": "太极引", "seq": ["block", "block", "attack"], "kind": "melee",
+			"damage": 44.0, "range": 120.0, "arc": 200.0, "knock": 280.0, "dash": 0.0, "cost": 20.0, "tier": "高阶", "manual": true,
+			"desc": "武当秘传·借力打力"},
+		{"id": "s_chuahua", "weapon": "sword", "name": "穿花绕蝶", "seq": ["dodge", "dodge", "attack"], "kind": "melee",
+			"damage": 40.0, "range": 110.0, "arc": 240.0, "knock": 220.0, "dash": 260.0, "cost": 15.0, "tier": "高阶", "manual": true,
+			"desc": "峨眉秘传·身剑合一"},
+		{"id": "s_baoyu", "weapon": "dart", "name": "暴雨梨花针", "seq": ["heavy", "heavy"], "kind": "spread",
+			"damage": 22.0, "range": 0.0, "arc": 0.0, "knock": 140.0, "dash": 0.0, "cost": 25.0, "tier": "高阶", "manual": true,
+			"projectiles": 5, "desc": "唐门秘传·漫天针雨"},
+		{"id": "s_dagou", "weapon": "staff", "name": "打狗棒法", "seq": ["dodge", "dodge", "attack"], "kind": "melee",
+			"damage": 46.0, "range": 120.0, "arc": 180.0, "knock": 300.0, "dash": 0.0, "cost": 15.0, "tier": "高阶", "manual": true,
+			"desc": "丐帮秘传·绊缠劈打"},
+		{"id": "s_yunheng", "weapon": "sword", "name": "云横秦岭", "seq": ["heavy", "block", "attack"], "kind": "melee",
+			"damage": 52.0, "range": 130.0, "arc": 170.0, "knock": 300.0, "dash": 0.0, "cost": 20.0, "tier": "高阶", "manual": true,
+			"desc": "华山秘传·一剑横天"},
 	]
 
 ## 按 id 查找招式（连招链施展用，D-028）

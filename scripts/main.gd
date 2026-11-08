@@ -464,6 +464,8 @@ func _register_actions() -> void:
 		"toggle_attr": [KEY_C],
 		"toggle_bag": [KEY_B],
 		"toggle_chain": [KEY_V],
+		"toggle_sect": [KEY_N],
+		"qgong": [KEY_X],
 		"slot_1": [KEY_1],
 		"slot_2": [KEY_2],
 		"slot_3": [KEY_3],

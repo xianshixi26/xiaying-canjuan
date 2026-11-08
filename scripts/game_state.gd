@@ -47,6 +47,8 @@ func save_game(player: Node, main: Node) -> bool:
 		"mingge": pending_mingge,
 		"difficulty": difficulty,
 		"level": player.level, "xp": player.xp, "stat_points": player.stat_points,
+		"money": player.money, "fame": player.fame, "sect": player.sect,
+		"learned_sect_moves": player.learned_sect_moves.keys(),
 		"stats": player.stats,
 		"inventory": player.inventory,
 		"weapon_unlocked": player.weapon_unlocked,
@@ -73,6 +75,11 @@ func apply_to(player: Node, main: Node, data: Dictionary) -> void:
 	player.level = int(data.get("level", 1))
 	player.xp = int(data.get("xp", 0))
 	player.stat_points = int(data.get("stat_points", 0))
+	player.money = int(data.get("money", 50))
+	player.fame = int(data.get("fame", 0))
+	player.sect = str(data.get("sect", ""))
+	for id in data.get("learned_sect_moves", []):
+		player.learned_sect_moves[str(id)] = true
 	var st: Dictionary = data.get("stats", {})
 	for k in st.keys():
 		player.stats[k] = int(st[k])

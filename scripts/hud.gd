@@ -41,6 +41,7 @@ var _dlg_shown := 0.0
 var _choices: Array = []
 var _ending: Dictionary = {}
 var _pause_open := false
+var _sect_open := false
 
 func say(speaker: String, text: String) -> void:
 	_dialog.append({"speaker": speaker, "text": text})
@@ -87,6 +88,7 @@ func _toggle(panel: String) -> void:
 	_attr_open = panel == "attr" and not _attr_open
 	_bag_open = panel == "bag" and not _bag_open
 	_chain_open = panel == "chain" and not _chain_open
+	_sect_open = panel == "sect" and not _sect_open
 
 func _unhandled_input(event: InputEvent) -> void:
 	# ---- 暂停菜单（D-031）----
@@ -149,6 +151,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_chain"):
 		_toggle("chain")
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_sect"):
+		_toggle("sect")
+		get_viewport().set_input_as_handled()
+	elif _sect_open and event is InputEventKey and event.pressed and not event.echo:
+		var sk: int = event.keycode
+		if sk >= KEY_1 and sk <= KEY_6:
+			player.join_sect(sk - KEY_1)
+			get_viewport().set_input_as_handled()
+		elif sk >= KEY_7 and sk <= KEY_9:
+			player.buy_item(sk - KEY_7)
+			get_viewport().set_input_as_handled()
 	elif _attr_open and event is InputEventKey and event.pressed and not event.echo:
 		var ak: int = event.keycode
 		if ak >= KEY_1 and ak <= KEY_6:
@@ -222,6 +235,8 @@ func _draw() -> void:
 		_draw_bag(w, h)
 	elif _chain_open:
 		_draw_chain(w, h)
+	elif _sect_open:
+		_draw_sect(w, h)
 
 ## 纸底面板：纸面 + 墨框 + 内细线 + 红角饰
 func _draw_panel(rect: Rect2, alpha: float = 0.95) -> void:
@@ -310,7 +325,7 @@ func _draw_legend(w: float, h: float) -> void:
 	var rect := Rect2(16, h - 54, w - 32, 40)
 	_draw_panel(rect, 0.88)
 	draw_string(_font, rect.position + Vector2(16, 26),
-		"J 攻　K 破　L 闪　U 御　I 气　R 连招　F 交互　Q 金疮药　E 回气散　1-5 切武器　C 属性　B 背包　V 连招编排　Tab 图鉴",
+		"WASD 移动｜F 交互｜J 攻｜K 破｜L 闪｜U 御｜I 气｜X 轻功｜R 连招｜Q/E 服药｜1-5 切武器｜C 属性｜B 背包｜N 宗门｜V 连招编排｜Tab 图鉴｜Esc 暂停",
 		HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 5, Color(C_INK, 0.9))
 
 # ================= 覆盖面板 =================
@@ -442,6 +457,39 @@ func _weapon_name() -> String:
 	return ""
 
 # ================= 剧情绘制（D-030） =================
+
+func _draw_sect(w: float, h: float) -> void:
+	var rect := _panel_frame(w, h, "武 林 宗 门")
+	var lv := 1
+	var money := 0
+	var fame := 0
+	var sect := ""
+	if is_instance_valid(player):
+		lv = int(player.get("level"))
+		money = int(player.get("money"))
+		fame = int(player.get("fame"))
+		sect = str(player.get("sect"))
+	draw_string(_font, rect.position + Vector2(40, 100), "等级 Lv.%d ｜ 银两 %d ｜ 声望 %d ｜ %s" % [lv, money, fame, ("已拜入 · " + sect) if sect != "" else "未拜师"], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, C_INK)
+	draw_string(_font, rect.position + Vector2(40, 132), "入门条件：Lv.2 ｜ 拜师习得本门绝学（按 1-6）｜ 一经拜师不可改投", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 4, Color(C_GRAY))
+	var sects: Array = []
+	if is_instance_valid(player):
+		sects = player.get("SECTS")
+	var y := rect.position.y + 178.0
+	for i in sects.size():
+		var s: Dictionary = sects[i]
+		_draw_keycap(Vector2(rect.position.x + 40, y - 16), str(i + 1))
+		draw_string(_font, rect.position + Vector2(76, y), "%s · %s" % [str(s["name"]), str(s["desc"])], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 2, C_INK)
+		draw_string(_font, rect.position + Vector2(300, y), "入门礼：%s（%s）" % [str(s["gift"]), str(s["weapon"])], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 2, Color(C_RED))
+		if sect != "":
+			draw_string(_font, rect.position + Vector2(560, y), "✓ 已入" if str(s["name"]) == sect else "", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 2, Color(C_GREEN))
+		y += 46.0
+	draw_string(_font, rect.position + Vector2(40, y + 20), "门派商店：", HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize, C_INK)
+	var shop := [["7", "金疮药 30 两"], ["8", "回气散 30 两"], ["9", "玄铁 50 两"]]
+	var sx := rect.position.x + 160.0
+	for it in shop:
+		_draw_keycap(Vector2(sx, y + 4), it[0])
+		draw_string(_font, Vector2(sx + 30, y + 22), it[1], HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize - 3, C_INK)
+		sx += 200.0
 
 func _draw_pause(w: float, h: float) -> void:
 	draw_rect(Rect2(0, 0, w, h), Color(0.06, 0.05, 0.1, 0.72))

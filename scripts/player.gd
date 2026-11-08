@@ -53,6 +53,23 @@ var _chain_timer := 0.0
 var level := 1
 var xp := 0
 var stat_points := 0
+# ---- 宗门/经济/轻功（D-032）----
+var money := 50
+var fame := 0
+var sect := ""
+var learned_sect_moves := {}
+var _qg_cd := 0.0
+var _qg_time := 0.0
+const QG_COST := 20.0
+
+const SECTS := [
+	{"id": "shaolin", "name": "少林", "weapon": "棍", "move": "s_weituo", "gift": "韦陀杵", "desc": "棍法刚猛"},
+	{"id": "wudang", "name": "武当", "weapon": "剑", "move": "s_taiji", "gift": "太极引", "desc": "以柔克刚"},
+	{"id": "emei", "name": "峨眉", "weapon": "剑", "move": "s_chuahua", "gift": "穿花绕蝶", "desc": "身法灵巧"},
+	{"id": "tangmen", "name": "唐门", "weapon": "暗器", "move": "s_baoyu", "gift": "暴雨梨花针", "desc": "暗器毒术"},
+	{"id": "gaibang", "name": "丐帮", "weapon": "棍", "move": "s_dagou", "gift": "打狗棒法", "desc": "棒法通神"},
+	{"id": "huashan", "name": "华山", "weapon": "剑", "move": "s_yunheng", "gift": "云横秦岭", "desc": "剑宗正统"},
+]
 
 var _combo = null
 var _attack_cd := 0.0
@@ -117,6 +134,52 @@ func allocate_stat(key: String) -> void:
 	stats[key] = int(stats[key]) + 1
 	refresh_derived()
 	_hint("%s +1（剩余 %d 点）" % [key, stat_points])
+
+# ================= 宗门/经济/轻功（D-032） =================
+
+func add_loot(m: int) -> void:
+	money += m
+	fame += 1
+
+func join_sect(i: int) -> void:
+	if sect != "":
+		_hint("已拜入%s，不可改投他门" % sect)
+		return
+	if level < 2:
+		_hint("拜师需 Lv.2——先在江湖历练一番")
+		return
+	var s: Dictionary = SECTS[i]
+	sect = str(s["name"])
+	learned_sect_moves[str(s["move"])] = true
+	money += 50
+	set_weapon(weapon_idx)
+	_hint("拜入%s！习得本门绝学【%s】，银两 +50" % [sect, str(s["gift"])])
+
+func buy_item(idx: int) -> void:
+	var offers := [["potion", 30], ["ether", 30], ["iron", 50]]
+	if idx < 0 or idx >= offers.size():
+		return
+	var id: String = offers[idx][0]
+	var price: int = offers[idx][1]
+	if money < price:
+		_hint("银两不足（%s 需 %d 两）" % [str(ITEMS.get(id, id)), price])
+		return
+	money -= price
+	add_item(id, 1)
+	_hint("购得【%s】×1（-%d 两）" % [str(ITEMS.get(id, id)), price])
+
+## 轻功：长距冲刺 + 凌空 + 无敌（耗内力）
+func _try_qgong() -> void:
+	if _qg_cd > 0.0:
+		_hint("轻功调息中…")
+		return
+	if mp < QG_COST:
+		_hint("内力不足")
+		return
+	mp -= QG_COST
+	_qg_cd = 3.0
+	_qg_time = 0.42
+	_invincible = 0.5
 
 func apply_mingge(m: Dictionary) -> void:
 	mingge = str(m["name"])
@@ -190,7 +253,10 @@ func set_weapon(idx: int) -> void:
 		return
 	weapon_idx = i
 	weapon = weapon_list[i]
-	move_list = MoveDB.moves_for(wid)
+	move_list = []
+	for mv in MoveDB.moves_for(wid):
+		if not bool(mv["manual"]) or learned_sect_moves.has(str(mv["id"])):
+			move_list.append(mv)  # 宗门绝学（manual）仅拜师后可用（D-032）
 	_combo.set_moves(move_list)
 	_attack_cd = 0.0
 	_heavy_cd = 0.0
@@ -220,13 +286,17 @@ func _physics_process(delta: float) -> void:
 	_invincible = maxf(_invincible - delta, 0.0)
 	_hit_flash = maxf(_hit_flash - delta, 0.0)
 	_chain_timer = maxf(_chain_timer - delta, 0.0)
+	_qg_cd = maxf(_qg_cd - delta, 0.0)
 	_combo.tick(delta)
 	mp = minf(mp + MP_REGEN * delta, max_mp)
 
 	var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var blocking := Input.is_action_pressed("block")
 
-	if _dash_time > 0.0:
+	if _qg_time > 0.0:
+		_qg_time -= delta
+		velocity = facing * 780.0
+	elif _dash_time > 0.0:
 		_dash_time -= delta
 		velocity = facing * DASH_SPEED
 	elif input_dir != Vector2.ZERO:
@@ -247,6 +317,11 @@ func _physics_process(delta: float) -> void:
 	if absf(facing.x) > 0.15:
 		_spr.flip_h = facing.x < 0.0
 	_spr.self_modulate = Color(2.2, 0.7, 0.7) if _hit_flash > 0.0 else Color.WHITE
+	# 轻功凌空（D-032）
+	var arc := 0.0
+	if _qg_time > 0.0:
+		arc = sin((1.0 - _qg_time / 0.42) * PI) * 22.0
+	_spr.offset = Vector2(0, -32.0 - arc)
 	if _w_spr != null:
 		# 手持武器：常态在手侧；攻击时沿弧线挥舞（2px 量化保持像素感，D-024）
 		var swing := 0.0
@@ -301,6 +376,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		use_item("potion")
 	elif event.is_action_pressed("use_ether"):
 		use_item("ether")
+	elif event.is_action_pressed("qgong"):
+		_try_qgong()
 	elif event.is_action_pressed("slot_1"):
 		set_weapon(0)
 	elif event.is_action_pressed("slot_2"):
@@ -452,6 +529,10 @@ func _hint(text: String) -> void:
 func _draw() -> void:
 	# 落影（角色本体为像素精灵，见 _ready）
 	draw_circle(Vector2(0, 2), 13.0, Color(0.18, 0.16, 0.2, 0.28))
+	# 轻功残影（D-032）
+	if _qg_time > 0.0:
+		for i in 3:
+			draw_circle(-facing * (18.0 + i * 16.0), 8.0 - i * 2.0, Color(0.65, 0.82, 1.0, 0.30 - i * 0.09))
 	# 轻击刀光
 	if _slash_time > 0.0:
 		var aim := facing.angle()

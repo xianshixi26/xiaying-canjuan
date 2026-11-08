@@ -15,6 +15,7 @@ var attack_interval := 1.2
 
 var player: Node2D
 var xp := 20                  # 击败经验（D-029）
+var money := 12               # 击败银两（D-032）
 var base_damage := 10.0
 var base_speed := 130.0
 var is_boss := false          # Boss 标记（D-030）
@@ -104,8 +105,11 @@ func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	fx.global_position = global_position + Vector2(0, -34)
 	get_parent().add_child(fx)
 	if hp <= 0.0:
-		if is_instance_valid(player) and player.has_method("add_xp"):
-			player.add_xp(xp)  # 击败获得经验（D-029）
+		if is_instance_valid(player):
+			if player.has_method("add_xp"):
+				player.add_xp(xp)  # 击败获得经验（D-029）
+			if player.has_method("add_loot"):
+				player.add_loot(money)  # 银两与声望（D-032）
 		if is_boss:
 			var scene := get_tree().current_scene
 			if scene != null and scene.has_method("on_boss_defeated"):
