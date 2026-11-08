@@ -6,6 +6,10 @@ const MoveDB := preload("res://scripts/move_database.gd")
 var player: Node2D
 var move_list: Array = []
 var place_name := "落雁村"
+var prompt_text := ""
+
+func set_prompt(text: String) -> void:
+	prompt_text = text
 
 var _hint_text := ""
 var _hint_time := 0.0
@@ -73,8 +77,11 @@ func _draw() -> void:
 		draw_rect(box, Color(0.12, 0.12, 0.15, 0.6 * alpha), false, 1.5)
 		draw_string(font, Vector2(w * 0.5 - tw * 0.5, 93.0), _hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tsize, Color(0.12, 0.12, 0.15, alpha))
 
+	# 交互提示（就近可交互物）
+	if prompt_text != "":
+		draw_string(font, Vector2(24, h - 62), "▸ " + prompt_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color(0.72, 0.18, 0.16))
 	# 操作提示
-	draw_string(font, Vector2(24, h - 28), "WASD 移动｜J 攻｜K 破｜L 闪｜U 御（按住减伤）｜I 气｜1-5 切换武器｜Tab 武学图鉴", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size - 2, Color(0.12, 0.12, 0.15, 0.75))
+	draw_string(font, Vector2(24, h - 28), "WASD 移动｜F 交互｜J 攻｜K 破｜L 闪｜U 御｜I 气｜1-5 切换武器｜Tab 图鉴", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size - 2, Color(0.12, 0.12, 0.15, 0.75))
 
 	# 武学图鉴
 	if _manual_open:

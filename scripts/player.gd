@@ -10,6 +10,7 @@ signal mp_changed(mp: float, max_mp: float)
 const MoveDB := preload("res://scripts/move_database.gd")
 const ComboSystem := preload("res://scripts/combo_system.gd")
 const ProjectileScript := preload("res://scripts/projectile.gd")
+const EffectScript := preload("res://scripts/effect.gd")
 
 const SPEED := 260.0
 const ACCEL := 2000.0
@@ -35,6 +36,8 @@ var facing := Vector2.RIGHT
 var hud: Node = null
 var weapon_list: Array = []   # 全部武器
 var weapon: Dictionary = {}   # 当前武器
+var weapon_idx := 0
+var weapon_unlocked := {"sword": true}  # 初始仅剑，其余靠宝箱/调查点（D-023）
 var move_list: Array = []     # 当前武器招式组（供 HUD 武学图鉴）
 var discovered := {}          # 已领悟招式 id -> true
 
@@ -48,26 +51,55 @@ var _slash_time := 0.0
 var _heavy_time := 0.0
 var _invincible := 0.0
 var _hit_flash := 0.0
+var _spr: Sprite2D = null
+var _w_spr: Sprite2D = null
+var _anim_t := 0.0
 
 func _ready() -> void:
 	weapon_list = MoveDB.get_weapons()
 	_combo = ComboSystem.new([])
+	_spr = Sprite2D.new()
+	_spr.texture = load("res://assets/actors/hero.png")
+	_spr.hframes = 4
+	_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_spr.offset = Vector2(0, -32)
+	add_child(_spr)
+	_w_spr = Sprite2D.new()  # 手持武器模型（D-023）
+	_w_spr.texture = load("res://assets/actors/weapons.png")
+	_w_spr.hframes = 5
+	_w_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_w_spr)
 	set_weapon(0)
 
-## 切换武器：更换招式组与基础攻击参数（D-016）
+## 切换武器：更换招式组与基础攻击参数（D-016）；未解锁武器不可用（D-023）
 func set_weapon(idx: int) -> void:
 	if weapon_list.is_empty():
 		return
 	var i := clampi(idx, 0, weapon_list.size() - 1)
+	var wid := str(weapon_list[i]["id"])
+	if not bool(weapon_unlocked.get(wid, false)):
+		_hint("尚未获得该武器（探索宝箱/调查点获取）")
+		return
+	weapon_idx = i
 	weapon = weapon_list[i]
-	move_list = MoveDB.moves_for(str(weapon["id"]))
+	move_list = MoveDB.moves_for(wid)
 	_combo.set_moves(move_list)
 	_attack_cd = 0.0
 	_heavy_cd = 0.0
+	if _w_spr != null:
+		_w_spr.frame = i
 	if hud != null:
 		hud.move_list = move_list
 	if not weapon.is_empty():
 		_hint("切换武器：%s（%s）——招式组已改变" % [str(weapon["name"]), str(weapon["type"])])
+
+## 解锁并立即装备武器（宝箱/调查点获得时调用）
+func grant_weapon(wid: String) -> void:
+	weapon_unlocked[wid] = true
+	for i in weapon_list.size():
+		if str(weapon_list[i]["id"]) == wid:
+			set_weapon(i)
+			return
 
 func _physics_process(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
@@ -97,6 +129,19 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	position = position.clamp(-arena_half, arena_half)
+	# 行走动画与朝向（技能：4 帧行走循环）
+	if velocity.length() > 30.0:
+		_anim_t += delta
+		_spr.frame = int(_anim_t * 8.0) % 4
+	else:
+		_spr.frame = 0
+	if absf(facing.x) > 0.15:
+		_spr.flip_h = facing.x < 0.0
+	_spr.self_modulate = Color(2.2, 0.7, 0.7) if _hit_flash > 0.0 else Color.WHITE
+	if _w_spr != null:
+		_w_spr.offset = facing.normalized() * 20.0 + Vector2(0, -14)
+		_w_spr.flip_h = facing.x < 0.0
+		_w_spr.self_modulate = _spr.self_modulate
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -105,6 +150,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _attack_cd <= 0.0 and _dash_time <= 0.0:
 			_attack_cd = float(weapon["atk_cd"])
 			_slash_time = 0.18
+			_spawn_fx("fx_slash.png", 4, 22.0)
 			if str(weapon["atk_kind"]) == "ranged":
 				_spawn_projectile(facing, float(weapon["atk_damage"]), float(weapon["atk_knock"]))
 			else:
@@ -115,6 +161,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _heavy_cd <= 0.0:
 			_heavy_cd = float(weapon["heavy_cd"])
 			_heavy_time = 0.25
+			_spawn_fx("fx_slash_heavy.png", 4, 18.0)
 			if str(weapon["heavy_kind"]) == "ranged":
 				_spawn_projectile(facing, float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
 			else:
@@ -172,8 +219,20 @@ func _resolve_move(move: Dictionary) -> bool:
 			_qi_cd = QI_CD
 			_spawn_spread(move)
 		_:
+			if str(move["kind"]) == "burst" or float(move["damage"]) >= 40.0:
+				_spawn_fx("fx_burst.png", 4, 16.0)
 			_hit_enemies(float(move["range"]), float(move["arc"]), float(move["damage"]), float(move["knock"]))
 	return true
+
+func _spawn_fx(fx_name: String, frames: int, fps: float) -> void:
+	var fx = EffectScript.new()
+	fx.texture = load("res://assets/fx/" + fx_name)
+	fx.hframes = frames
+	fx.fps = fps
+	fx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	fx.global_position = global_position + facing.normalized() * 26.0
+	fx.flip_h = facing.x < 0.0
+	get_parent().add_child(fx)
 
 const QI_CD := 0.45
 
@@ -241,31 +300,8 @@ func _hint(text: String) -> void:
 		hud.show_hint(text)
 
 func _draw() -> void:
-	# 影子
-	draw_circle(Vector2(2, 14), 16.0, Color(0.2, 0.2, 0.22, 0.18))
-	# 身体（墨色；受击闪红）
-	var body := Color(0.12, 0.12, 0.15)
-	if _hit_flash > 0.0:
-		body = Color(0.62, 0.15, 0.14)
-	draw_circle(Vector2.ZERO, 16.0, body)
-	# 发髻（淡墨）
-	draw_circle(Vector2(-3, -9), 9.0, Color(0.32, 0.32, 0.38))
-	# 兵器笔触（随武器类型变化）
-	var dir := facing.normalized()
-	var ink := Color(0.16, 0.16, 0.2)
-	match str(weapon.get("type", "剑")):
-		"剑":
-			draw_line(dir * 12.0, dir * 34.0, ink, 4.0, true)
-		"刀":
-			draw_line(dir * 10.0, dir * 32.0, ink, 7.0, true)
-		"拳掌":
-			draw_circle(dir * 22.0, 6.0, ink)
-		"暗器":
-			draw_circle(dir * 26.0, 4.0, Color(0.45, 0.42, 0.35))
-		"棍":
-			draw_line(dir * 6.0, dir * 44.0, Color(0.30, 0.26, 0.22), 5.0, true)
-	# 印章红点缀
-	draw_circle(Vector2(9, 6), 4.0, Color(0.78, 0.16, 0.15))
+	# 落影（角色本体为像素精灵，见 _ready）
+	draw_circle(Vector2(0, 2), 13.0, Color(0.18, 0.16, 0.2, 0.28))
 	# 轻击刀光
 	if _slash_time > 0.0:
 		var aim := facing.angle()
