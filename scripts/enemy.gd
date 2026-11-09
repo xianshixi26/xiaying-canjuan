@@ -4,6 +4,7 @@ extends CharacterBody2D
 
 const EffectScript := preload("res://scripts/effect.gd")
 const SlashEffect := preload("res://scripts/slash_effect.gd")
+const TEX_SLASH_RED := preload("res://assets/fx/meowa_slash_red.png")
 
 var max_hp := 60.0
 var hp := 60.0
@@ -65,6 +66,7 @@ func _physics_process(delta: float) -> void:
 				target_dir = to_player.normalized()
 			elif _attack_cd <= 0.0:
 				_attack_cd = attack_interval
+				_spawn_attack_fx()  # 敌人攻击特效（D-035）
 				if player.has_method("take_damage"):
 					player.take_damage(attack_damage)
 		else:
@@ -92,6 +94,18 @@ func _wander(delta: float) -> Vector2:
 		_wander_time = randf_range(1.0, 2.5)
 		_wander_dir = Vector2.RIGHT.rotated(randf_range(0.0, TAU)) if randf() > 0.4 else Vector2.ZERO
 	return _wander_dir
+
+## 敌人攻击特效：红色斩击弧（D-035）
+func _spawn_attack_fx() -> void:
+	var fx = SlashEffect.new()
+	fx.mode = "slash"
+	fx.base_angle = (player.global_position - global_position).angle()
+	fx.radius = 72.0
+	fx.duration = 0.22
+	fx.flip = player.global_position.x < global_position.x
+	fx.tex_override = TEX_SLASH_RED
+	fx.global_position = global_position
+	get_parent().add_child(fx)
 
 func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 	hp -= dmg

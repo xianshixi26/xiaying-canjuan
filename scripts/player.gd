@@ -47,6 +47,7 @@ var mingge := "未定命格"
 var inventory := {"potion": 2, "ether": 1, "herb": 0, "iron": 0}
 const ITEMS := {"potion": "金疮药", "ether": "回气散", "herb": "草药", "iron": "玄铁"}
 var chains := {}              # 武器id -> Array[招式id]
+var custom_moves: Array = []  # 自创招式记录（D-035）
 var _chain_idx := 0
 var _chain_timer := 0.0
 # ---- 成长（D-029）----
@@ -242,6 +243,66 @@ func chain_exec() -> void:
 	if not mv.is_empty():
 		_resolve_move(mv)
 
+# ================= 自由搓招（D-035 设计亮点） =================
+## 输入处理统一入口：先试命名招式，否则合成自创招
+func _after_input(move: Dictionary) -> void:
+	_resolve_move(move)
+	if move.is_empty() and not _combo.can_extend():
+		var acts: Array = _combo.get_buffer_actions()
+		if acts.size() >= 2:
+			_synthesize()
+
+## 由按键组件合成招式：攻=快斩 破=重击 闪=位移 御=横扫 气=远程
+func _synthesize() -> void:
+	var acts: Array = _combo.get_buffer_actions().slice(-5)
+	_combo.clear_buffer()
+	var damage := 0.0
+	var knock := 0.0
+	var arc := 90.0
+	var dash := 0.0
+	var cost := 0.0
+	var ranged := false
+	for a in acts:
+		match str(a):
+			"attack":
+				damage += 16.0
+				arc += 30.0
+			"heavy":
+				damage += 26.0
+				knock += 120.0
+				arc += 20.0
+			"dodge":
+				dash += 180.0
+			"block":
+				knock += 60.0
+				arc += 40.0
+			"qi":
+				damage += 12.0
+				cost += 12.0
+				ranged = true
+	damage *= (1.0 + float(acts.size() - 2) * 0.18) * (1.0 + float(stats["力道"]) * 0.02)
+	var kind_names := {"attack": "斩", "heavy": "劈", "dodge": "影", "block": "御", "qi": "气"}
+	var nm := "自创·%d连%s" % [acts.size(), str(kind_names.get(str(acts[acts.size() - 1]), "式"))]
+	var seen := false
+	for m in custom_moves:
+		if str(m["name"]) == nm and str(m["acts"]) == str(acts):
+			seen = true
+			break
+	if not seen:
+		custom_moves.append({"name": nm, "acts": acts.duplicate(), "damage": damage})
+		_hint("✦ 领悟自创招式【%s】！（Tab 图鉴可查）" % nm)
+	else:
+		_hint("▸ %s！" % nm)
+	if ranged and str(acts[acts.size() - 1]) == "qi":
+		mp = maxf(mp - cost, 0.0)
+		_spawn_projectile(facing, damage * 1.2, knock + 80.0)
+		_spawn_burst()
+	else:
+		if cost > 0.0:
+			mp = maxf(mp - cost, 0.0)
+		_spawn_slash(acts.size() >= 3)
+		_hit_enemies(clampf(90.0 + arc * 0.5, 90.0, 220.0), arc, damage, knock, dash)
+
 ## 切换武器：更换招式组与基础攻击参数（D-016）；未解锁武器不可用（D-023）
 func set_weapon(idx: int) -> void:
 	if weapon_list.is_empty():
@@ -323,7 +384,9 @@ func _physics_process(delta: float) -> void:
 		arc = sin((1.0 - _qg_time / 0.42) * PI) * 22.0
 	_spr.offset = Vector2(0, -64.0 - arc)
 	if _w_spr != null:
-		# 手持武器：常态在手侧；攻击时沿弧线挥舞（2px 量化保持像素感，D-024）
+		# 手持武器：仅挥舞时显示在手侧（D-035 纸片感修正）；攻击时沿弧线挥舞
+		var swinging := _slash_time > 0.0 or _heavy_time > 0.0
+		_w_spr.visible = swinging
 		var swing := 0.0
 		var remain := maxf(_slash_time, _heavy_time)
 		if remain > 0.0:
@@ -331,7 +394,7 @@ func _physics_process(delta: float) -> void:
 			var t := 1.0 - clampf(remain / total, 0.0, 1.0)
 			swing = lerpf(-1.15, 1.15, t)
 		var w_ang := facing.angle() + swing
-		var w_off := Vector2(cos(w_ang), sin(w_ang)) * 22.0 + Vector2(0, -12)
+		var w_off := Vector2(cos(w_ang), sin(w_ang)) * 18.0 + facing * 24.0 + Vector2(0, -52)
 		_w_spr.offset = (w_off / 2.0).round() * 2.0
 		_w_spr.flip_h = facing.x < 0.0
 		_w_spr.self_modulate = _spr.self_modulate
@@ -348,7 +411,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_spawn_projectile(facing, float(weapon["atk_damage"]), float(weapon["atk_knock"]))
 			else:
 				_hit_enemies(float(weapon["atk_range"]), float(weapon["atk_arc"]), float(weapon["atk_damage"]), float(weapon["atk_knock"]))
-		_resolve_move(move)
+		_after_input(move)
 	elif event.is_action_pressed("heavy"):
 		var move = _combo.push_action("heavy")
 		if _heavy_cd <= 0.0:
@@ -359,17 +422,19 @@ func _unhandled_input(event: InputEvent) -> void:
 				_spawn_projectile(facing, float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
 			else:
 				_hit_enemies(float(weapon["heavy_range"]), float(weapon["heavy_arc"]), float(weapon["heavy_damage"]), float(weapon["heavy_knock"]))
-		_resolve_move(move)
+		_after_input(move)
 	elif event.is_action_pressed("dodge"):
 		var move = _combo.push_action("dodge")
 		_try_dash()
-		_resolve_move(move)
+		_after_input(move)
 	elif event.is_action_pressed("qi"):
 		var move = _combo.push_action("qi")
 		if not _resolve_move(move):
 			_basic_qi()
+		if move.is_empty() and not _combo.can_extend() and _combo.get_buffer_actions().size() >= 2:
+			_synthesize()
 	elif event.is_action_pressed("block"):
-		_combo.push_action("block")
+		_after_input(_combo.push_action("block"))
 	elif event.is_action_pressed("chain_exec"):
 		chain_exec()
 	elif event.is_action_pressed("use_potion"):

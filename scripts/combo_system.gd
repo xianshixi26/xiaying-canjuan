@@ -44,6 +44,27 @@ func get_buffer_actions() -> Array:
 		out.append(str(entry["action"]))
 	return out
 
+## 自由搓招（D-035）：缓冲尾部是否仍是某招式的前缀（是=继续等，否=可合成自创招）
+func can_extend() -> bool:
+	var acts := get_buffer_actions()
+	if acts.is_empty():
+		return false
+	for move in moves:
+		var seq: Array = move["seq"]
+		var max_k: int = mini(seq.size() - 1, acts.size())
+		for k in range(1, max_k + 1):
+			var ok := true
+			for j in k:
+				if str(acts[acts.size() - k + j]) != str(seq[j]):
+					ok = false
+					break
+			if ok:
+				return true
+	return false
+
+func clear_buffer() -> void:
+	_buffer.clear()
+
 func _tail_matches(seq: Array) -> bool:
 	if seq.is_empty() or _buffer.size() < seq.size():
 		return false

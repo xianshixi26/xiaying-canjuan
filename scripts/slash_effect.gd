@@ -15,6 +15,8 @@ var duration := 0.26
 var color_core := Color(1.0, 0.98, 0.9)   # 兼容旧接口
 var color_glow := Color(1.0, 0.8, 0.35)   # 兼容旧接口
 var flip := false
+var tint := Color.WHITE
+var tex_override: Texture2D = null   # 敌方红色斩击等变体（D-035）
 
 var _t := 0.0
 
@@ -32,6 +34,8 @@ func _draw() -> void:
 			sheet = TEX_RING
 		"hit":
 			sheet = TEX_SPARK
+	if mode == "slash" and tex_override != null:
+		sheet = tex_override
 	var p := clampf(_t / duration, 0.0, 1.0)
 	var f := mini(int(p * frames), frames - 1)
 	var fw: int = sheet.get_width() / frames
@@ -45,5 +49,5 @@ func _draw() -> void:
 	var rot := base_angle if mode == "slash" else 0.0
 	var sx := -1.0 if (flip and mode == "slash") else 1.0
 	draw_set_transform(Vector2.ZERO, rot, Vector2(sx, 1.0))
-	draw_texture_rect_region(sheet, target, region, Color(1, 1, 1, fade))
+	draw_texture_rect_region(sheet, target, region, Color(tint.r, tint.g, tint.b, fade * tint.a))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

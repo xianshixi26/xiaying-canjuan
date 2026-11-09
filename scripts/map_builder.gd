@@ -82,8 +82,8 @@ static func _tile_type(tx: int, ty: int) -> String:
 	if Vector2(tx - 24, ty - 16).length() <= 3.5:
 		return "paper"
 	if _grass_mask(tx, ty):
-		return "grass"
-	return "paper"
+		return "paper"  # 夯土斑块作变化（D-035：草地为全图基调，不再露白）
+	return "grass"
 
 static func _grass_mask(tx: int, ty: int) -> bool:
 	var v := sin(tx * 0.29) * cos(ty * 0.26) + sin((tx + ty) * 0.16) * 0.65

@@ -8,6 +8,7 @@ const C_RED := Color(0.72, 0.16, 0.13)
 const C_GOLD := Color(0.85, 0.66, 0.28)
 const C_GRAY := Color(0.45, 0.43, 0.40)
 const UI_PANEL := preload("res://assets/ui/panel.png")
+const UI_BG := preload("res://assets/ui/title_bg.png")   # 水墨山水背景（D-035）
 
 const MINGGE_TABLE := [
 	{"name": "武曲星临凡", "quality": "天品", "mods": {"力道": 3}, "desc": "天生神力，破招凌厉"},
@@ -158,11 +159,9 @@ func _draw() -> void:
 	var w := size.x
 	var h := size.y
 	_hit_rects.clear()
-	# 背景：宣纸 + 远山淡墨
-	draw_rect(Rect2(0, 0, w, h), Color(0.90, 0.87, 0.79))
-	draw_circle(Vector2(w * 0.18, h * 0.82), 220.0, Color(0.60, 0.60, 0.62, 0.10))
-	draw_circle(Vector2(w * 0.84, h * 0.78), 260.0, Color(0.60, 0.60, 0.62, 0.10))
-	draw_circle(Vector2(w * 0.5, h * 1.05), 380.0, Color(0.55, 0.55, 0.58, 0.10))
+	# 背景：水墨山水画（16:9 等比）
+	draw_texture_rect(UI_BG, Rect2(0, 0, w, h), false)
+	draw_rect(Rect2(0, 0, w, h), Color(0.95, 0.92, 0.85, 0.25))  # 提亮文字可读性
 	# 标题
 	draw_string(_font, Vector2(0, 130), "侠 影 残 卷", HORIZONTAL_ALIGNMENT_CENTER, w, 84, C_INK)
 	draw_string(_font, Vector2(0, 180), "——  一 剑 入 江 湖 ， 半 纸 写 恩 仇  ——", HORIZONTAL_ALIGNMENT_CENTER, w, 22, Color(C_GRAY))

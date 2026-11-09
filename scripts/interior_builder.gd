@@ -7,6 +7,7 @@ const TILE := 64
 
 const TILE_TEX := {
 	"paper": "res://assets/tiles/paper.png",
+	"path": "res://assets/tiles/path.png",
 	"wall": "res://assets/tiles/wall.png",
 }
 const PROP_TEX := {
@@ -44,7 +45,7 @@ static func build(parent: Node2D) -> Dictionary:
 				edge = false
 			# 内墙（隔出内室）：x=-2 一列，留月亮门
 			var inner := tx == -2 and ty != -1 and ty != 0
-			var t := "wall" if (edge or inner) else "paper"
+			var t := "wall" if (edge or inner) else "path"  # 石板地面（D-035 室内充实）
 			var v := int(floor(abs(sin(float(tx * 92821 + ty * 68917))) * 4.0)) % 4
 			layer.set_cell(Vector2i(tx, ty), int(ids[t]), Vector2i(v, 0))
 	parent.add_child(layer)
@@ -74,11 +75,15 @@ static func build(parent: Node2D) -> Dictionary:
 	# ---- 家具 ----
 	var furn := [
 		["table", Vector2(-4, -1) * TILE, "rect", Vector2(150, 60)],
+		["table", Vector2(4, 2) * TILE, "rect", Vector2(150, 60)],
 		["shelf", Vector2(-8, -5) * TILE, "rect", Vector2(80, 50)],
+		["shelf", Vector2(-7, -5) * TILE, "rect", Vector2(80, 50)],
 		["shelf", Vector2(7, -5) * TILE, "rect", Vector2(80, 50)],
 		["bed", Vector2(5, -2) * TILE, "rect", Vector2(70, 120)],
 		["lantern_post", Vector2(-8, 4) * TILE, "circle", 16.0],
 		["lantern_post", Vector2(8, 4) * TILE, "circle", 16.0],
+		["lantern_post", Vector2(-8, -2) * TILE, "circle", 16.0],
+		["lantern_post", Vector2(0, -6) * TILE, "circle", 16.0],
 	]
 	for f in furn:
 		var root := Node2D.new()
