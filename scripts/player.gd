@@ -438,16 +438,14 @@ func _weapon_glow() -> Color:
 			return Color(0.85, 0.7, 1.0)
 	return Color(0.65, 0.82, 1.0)
 
-## 剑光扫弧（轻击窄弧 / 重击宽弧红光）
+## 剑光扫弧（轻击窄弧 / 重击宽弧+冲击环）（D-033 AI 特效帧带）
 func _spawn_slash(heavy: bool) -> void:
 	var fx = SlashEffect.new()
 	fx.mode = "slash"
 	fx.base_angle = facing.angle()
-	fx.radius = 92.0 if heavy else 76.0
-	fx.sweep = 1.5 if heavy else 1.2
+	fx.radius = 96.0 if heavy else 78.0
 	fx.duration = 0.3 if heavy else 0.24
-	fx.color_glow = Color(1.0, 0.42, 0.22) if heavy else _weapon_glow()
-	fx.color_core = Color(1.0, 0.96, 0.88)
+	fx.flip = facing.x < 0.0
 	fx.global_position = global_position
 	get_parent().add_child(fx)
 

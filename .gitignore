@@ -4,3 +4,7 @@ export_presets.cfg
 *.tmp
 
 debug.log
+
+# Meowa 技能：密钥与本地依赖（严禁入库）
+.env
+.pylibs/
