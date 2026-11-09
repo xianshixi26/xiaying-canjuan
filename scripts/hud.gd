@@ -4,6 +4,7 @@ extends Control
 ## 面板：Tab 图鉴 ｜ C 属性 ｜ B 背包 ｜ V 连招链（数字键编排/Backspace 撤销/X 清空）
 
 const MoveDB := preload("res://scripts/move_database.gd")
+const UI_PANEL := preload("res://assets/ui/panel.png")
 
 const C_INK := Color(0.10, 0.10, 0.16)
 const C_PAPER := Color(0.93, 0.90, 0.82)
@@ -238,14 +239,23 @@ func _draw() -> void:
 	elif _sect_open:
 		_draw_sect(w, h)
 
-## 纸底面板：纸面 + 墨框 + 内细线 + 红角饰
+## 纸底面板：AI 山水面板框九宫格拉伸（D-034）
 func _draw_panel(rect: Rect2, alpha: float = 0.95) -> void:
-	draw_rect(rect, Color(C_PAPER, alpha))
-	draw_rect(rect, Color(C_INK, 0.95), false, 2.0)
-	draw_rect(rect.grow(-4.0), Color(C_INK, 0.22), false, 1.0)
-	for c in [rect.position + Vector2(5, 5), Vector2(rect.end.x - 5, rect.position.y + 5),
-			Vector2(rect.position.x + 5, rect.end.y - 5), rect.end - Vector2(5, 5)]:
-		draw_circle(c, 3.5, Color(C_RED, 0.9))
+	var t := UI_PANEL
+	var sw := t.get_width() / 3
+	var sh := t.get_height() / 3
+	var cw := rect.size.x / 3.0
+	var ch := rect.size.y / 3.0
+	var mod := Color(1, 1, 1, alpha)
+	draw_texture_rect_region(t, Rect2(rect.position, Vector2(cw, ch)), Rect2(0, 0, sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(rect.size.x - cw, 0), Vector2(cw, ch)), Rect2(t.get_width() - sw, 0, sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(0, rect.size.y - ch), Vector2(cw, ch)), Rect2(0, t.get_height() - sh, sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.end - Vector2(cw, ch), Vector2(cw, ch)), Rect2(t.get_width() - sw, t.get_height() - sh, sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(cw, 0), Vector2(rect.size.x - 2 * cw, ch)), Rect2(sw, 0, t.get_width() - 2 * sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(cw, rect.size.y - ch), Vector2(rect.size.x - 2 * cw, ch)), Rect2(sw, t.get_height() - sh, t.get_width() - 2 * sw, sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(0, ch), Vector2(cw, rect.size.y - 2 * ch)), Rect2(0, sh, sw, t.get_height() - 2 * sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(rect.size.x - cw, ch), Vector2(cw, rect.size.y - 2 * ch)), Rect2(t.get_width() - sw, sh, sw, t.get_height() - 2 * sh), mod)
+	draw_texture_rect_region(t, Rect2(rect.position + Vector2(cw, ch), rect.size - Vector2(cw * 2, ch * 2)), Rect2(sw, sh, t.get_width() - 2 * sw, t.get_height() - 2 * sh), mod)
 
 func _draw_keycap(pos: Vector2, letter: String) -> void:
 	draw_rect(Rect2(pos, Vector2(20, 20)), Color(0.16, 0.16, 0.22))
@@ -271,7 +281,7 @@ func _draw_player_panel() -> void:
 	if is_instance_valid(player):
 		var spr: Sprite2D = player.get("_spr")
 		if spr != null and spr.texture != null:
-			draw_texture_rect_region(spr.texture, portrait.grow(-2.0), Rect2(0, 0, 64, 64))
+			draw_texture_rect_region(spr.texture, portrait.grow(-2.0), Rect2(0, 0, 128, 128))
 	draw_rect(portrait, C_INK, false, 2.0)
 	# 名号与命格
 	draw_string(_font, Vector2(98, 48), GameState.pending_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _fsize + 4, C_INK)

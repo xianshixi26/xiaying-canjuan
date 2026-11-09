@@ -34,7 +34,7 @@ func _ready() -> void:
 	_spr.texture = load(tex_path)
 	_spr.hframes = 4
 	_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_spr.offset = Vector2(0, -32)
+	_spr.offset = Vector2(0, -64)
 	if is_boss:
 		_spr.scale = Vector2(2, 2)  # Boss 体型 2 倍（整数缩放）
 	add_child(_spr)
@@ -119,5 +119,5 @@ func take_damage(dmg: float, knock: Vector2 = Vector2.ZERO) -> void:
 func _draw() -> void:
 	draw_circle(Vector2(0, 2), 13.0, Color(0.18, 0.16, 0.2, 0.28))
 	if hp < max_hp:
-		draw_rect(Rect2(-22, -78, 44, 5), Color(0.12, 0.12, 0.15, 0.35))
-		draw_rect(Rect2(-22, -78, 44.0 * clampf(hp / max_hp, 0.0, 1.0), 5), Color(0.72, 0.18, 0.16))
+		draw_rect(Rect2(-22, -112, 44, 5), Color(0.12, 0.12, 0.15, 0.35))
+		draw_rect(Rect2(-22, -112, 44.0 * clampf(hp / max_hp, 0.0, 1.0), 5), Color(0.72, 0.18, 0.16))

@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "job_id": "job_88fe03b90ddf41c7a5d865e941b659f8",
+  "outputs": [
+    {
+      "type": "media",
+      "path": "D:\\deepseekwork\\wuxia-game\\meowa_out\\chars_cut\\result_images_0_url\\output.png",
+      "mime_type": "image/png"
+    }
+  ]
+}

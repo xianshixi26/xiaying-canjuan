@@ -92,7 +92,7 @@ func _ready() -> void:
 	_spr.texture = load("res://assets/actors/hero.png")
 	_spr.hframes = 4
 	_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_spr.offset = Vector2(0, -32)
+	_spr.offset = Vector2(0, -64)
 	add_child(_spr)
 	_w_spr = Sprite2D.new()  # 手持武器模型（D-023）
 	_w_spr.texture = load("res://assets/actors/weapons.png")
@@ -321,7 +321,7 @@ func _physics_process(delta: float) -> void:
 	var arc := 0.0
 	if _qg_time > 0.0:
 		arc = sin((1.0 - _qg_time / 0.42) * PI) * 22.0
-	_spr.offset = Vector2(0, -32.0 - arc)
+	_spr.offset = Vector2(0, -64.0 - arc)
 	if _w_spr != null:
 		# 手持武器：常态在手侧；攻击时沿弧线挥舞（2px 量化保持像素感，D-024）
 		var swing := 0.0
